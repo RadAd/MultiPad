@@ -1,0 +1,3 @@
+[submodule "RadVSProps"]
+	path = RadVSProps
+	url = https://gist.github.com/e18ca0c78afff45094234935ea817cf7.git
