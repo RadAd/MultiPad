@@ -41,33 +41,25 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
     return hWnd;
 }
 
-HFONT CreateFont()
-{
-    static HFONT hFont = CreateFont(
-        16, 0, 0, 0, FW_NORMAL,
-        FALSE, FALSE, FALSE,
-        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE,
-        TEXT("Consolas"));
-    CHECK_LE(hFont != NULL);
-    return hFont;
-}
-
 class TextDocWindow : public MDIChild
 {
     friend WindowManager<TextDocWindow>;
     using Class = ChildClass;
 public:
+    struct Init
+    {
+        HFONT hFont;
+        BOOL Maximized;
+    };
     static ATOM Register() { return ::Register<Class>(); }
-    static TextDocWindow* Create(HWND hWndParent, BOOL Maximized) { return WindowManager<TextDocWindow>::Create(hWndParent, TEXT("New Document"), (LPVOID) (INT_PTR) Maximized); }
+    static TextDocWindow* Create(HWND hWndParent, const Init& init) { return WindowManager<TextDocWindow>::Create(hWndParent, TEXT("New Document"), (LPVOID) (INT_PTR) &init); }
 
 protected:
     virtual HWND CreateWnd(const CREATESTRUCT& ocs)
     {
-        BOOL Maximized = (BOOL) (INT_PTR) ocs.lpCreateParams;
+        const Init& init = *((Init*) (INT_PTR) ocs.lpCreateParams);
         CREATESTRUCT cs = ocs;
-        if (Maximized)
+        if (init.Maximized)
             cs.style |= WS_MAXIMIZE;
         return MDIChild::CreateWnd(cs);
     }
@@ -99,18 +91,22 @@ private:
     void OnSetFocus(HWND hwndOldFocus);
     void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
 
+    HFONT m_hFont = NULL;
     HWND m_hWndChild = NULL;
 };
 
 BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
+    const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
+    m_hFont = init.hFont;
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), 0);
-    SetWindowFont(m_hWndChild, CreateFont(), TRUE);
+    SetWindowFont(m_hWndChild, m_hFont, TRUE);
     return TRUE;
 }
 
 void TextDocWindow::OnDestroy()
 {
+    DeleteObject(m_hFont);
 }
 
 void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
@@ -211,12 +207,22 @@ private:
     void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
 
 private:
+    HFONT m_hFont = NULL;
     HACCEL m_hAccelTable = NULL;
 };
 
 BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
-    m_hAccelTable = LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
+    m_hAccelTable = CHECK_LE(LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1)));
+
+    m_hFont = CHECK_LE(CreateFont(
+        16, 0, 0, 0, FW_NORMAL,
+        FALSE, FALSE, FALSE,
+        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE,
+        TEXT("Consolas")));
+
     return TRUE;
 }
 
@@ -234,7 +240,7 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         BOOL bMaximized = FALSE;
         if (GetActiveChild(&bMaximized) == NULL)
             bMaximized = TRUE;
-        CHECK_LE(TextDocWindow::Create(GetMDIClient(), bMaximized));
+        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, bMaximized }));
         break;
     }
     case ID_FILE_OPEN:
