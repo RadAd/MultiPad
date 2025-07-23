@@ -3,6 +3,7 @@
 #include "Rad/Windowxx.h"
 #include "Rad/WinError.h"
 #include "Rad/MemoryPlus.h"
+#include "Rad/RadTextFile.h"
 #include <CommCtrl.h>
 #include <CommDlg.h>
 #include <shlwapi.h>
@@ -116,6 +117,26 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     SetWindowText(*this, m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str()));
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), 0);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
+
+    if (!m_FileName.empty())
+    {
+#ifdef UNICODE
+        const UINT cp = CP_UTF16_LE;
+#else
+        const UINT cp = CP_ACP;
+#endif
+
+        stdt::string fullfile;
+        {
+            stdt::string line;
+            RadITextFile itf(m_FileName.c_str(), CP_ACP);
+            while (itf.ReadLine(line, cp))
+                fullfile += line;
+        }
+        if (!fullfile.empty())
+            Edit_SetText(m_hWndChild, fullfile.c_str());
+    }
+
     return TRUE;
 }
 

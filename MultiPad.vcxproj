@@ -20,6 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{320ae5f4-47f6-4a46-b6a9-abdf5e8c9f28}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -40,21 +41,33 @@
     <Link>
       <AdditionalDependencies>Comctl32.lib;Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <AdditionalDependencies>Comctl32.lib;Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalDependencies>Comctl32.lib;Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
       <AdditionalDependencies>Comctl32.lib;Shlwapi.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="MultiPad.cpp" />
@@ -62,11 +75,15 @@
     <ClCompile Include="Rad\Log.cpp" />
     <ClCompile Include="Rad\MDI.cpp" />
     <ClCompile Include="Rad\MessageHandler.cpp" />
+    <ClCompile Include="Rad\RadFile.cpp" />
+    <ClCompile Include="Rad\RadTextFile.cpp" />
     <ClCompile Include="Rad\Window.cpp" />
     <ClCompile Include="Rad\WinError.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Rad\ByteOrderMark.h" />
+    <ClInclude Include="Rad\byte_swap.h" />
     <ClInclude Include="Rad\Convert.h" />
     <ClInclude Include="Rad\Dialog.h" />
     <ClInclude Include="Rad\Format.h" />
@@ -75,7 +92,11 @@
     <ClInclude Include="Rad\MDI.h" />
     <ClInclude Include="Rad\MessageHandler.h" />
     <ClInclude Include="Rad\NewDebug.h" />
+    <ClInclude Include="Rad\RadFile.h" />
+    <ClInclude Include="Rad\RadTextFile.h" />
     <ClInclude Include="Rad\SourceLocation.h" />
+    <ClInclude Include="Rad\span.h" />
+    <ClInclude Include="Rad\Unicode.h" />
     <ClInclude Include="Rad\Window.h" />
     <ClInclude Include="Rad\Windowxx.h" />
     <ClInclude Include="Rad\WinError.h" />
