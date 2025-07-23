@@ -102,14 +102,15 @@ public:
     RadOTextFile(_In_ LPCTSTR lpFileName, _In_ const UINT cp, _In_ const bool bom)
         : m_file(lpFileName), m_cp(cp)
     {
-        if (bom)
+        if (bom && Valid())
             WriteBom();
     }
 
     bool Open(_In_ LPCTSTR lpFileName, _In_ const UINT cp, _In_ const bool bom)
     {
-        m_file.Open(lpFileName);
         m_cp = cp;
+        if (!m_file.Open(lpFileName))
+            return false;
         if (bom)
             WriteBom();
     }

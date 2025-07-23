@@ -76,6 +76,7 @@ public:
         _Out_writes_bytes_(nNumberOfBytesToRead) __out_data_source(FILE) LPVOID lpBuffer,
         _In_ DWORD nNumberOfBytesToRead)
     {
+        _ASSERTE(Valid());
         DWORD nNumberOfBytesRead = 0;
         const BOOL b = ReadFile(*this, lpBuffer, nNumberOfBytesToRead, &nNumberOfBytesRead, nullptr);
         if (b)
@@ -109,13 +110,14 @@ public:
 
     bool Open(_In_ LPCTSTR lpFileName)
     {
-        return Open(lpFileName, GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+        return Open(lpFileName, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     }
 
     DWORD Write(
         _In_reads_bytes_opt_(nNumberOfBytesToWrite) LPCVOID lpBuffer,
         _In_ DWORD nNumberOfBytesToWrite)
     {
+        _ASSERTE(Valid());
         DWORD pNumberOfBytesWritten = 0;
         const BOOL b = WriteFile(*this, lpBuffer, nNumberOfBytesToWrite, &pNumberOfBytesWritten, nullptr);
         if (b)

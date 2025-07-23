@@ -12,6 +12,33 @@
 #include <vector>
 #include "resource.h"
 
+// TODO
+// Application icon
+// Document icon
+// Toolbar
+// Status bar cursor pos/selection
+// Save As
+// Warn when closing an unsaved file
+// Monitor for file updates
+// Multi undo
+// Support for line endings
+// Support for bom
+// Word boundaries
+// Save position in registry
+// Choose font
+// Word wrap
+// Drop file support
+// Open from url
+// Recent file list
+// goto line
+// tab mode
+// split view
+// open from command line
+
+// TODO - Not sure this can be done with the edit control
+// Show whitespace
+// Show unprintable characters
+
 namespace stdt
 {
 #ifdef UNICODE
@@ -115,6 +142,26 @@ private:
         SetWindowText(*this, title.c_str());
     }
 
+    void Save()
+    {
+        // TODO Use text control handle
+        stdt::string text;
+        text.resize(GetWindowTextLength(m_hWndChild));
+        GetWindowText(m_hWndChild, text.data(), static_cast<int>(text.size() + 1));
+
+#ifdef UNICODE
+        const UINT cp = CP_UTF16_LE;
+#else
+        const UINT cp = CP_ACP;
+#endif
+        RadOTextFile otf(m_FileName.c_str(), CP_ACP, true);
+        if (!CHECK_LE(otf.Valid())) return; // TODO This should be a user friendly message
+        otf.Write(text, cp);
+
+        m_modified = false;
+        SetTitle();
+    }
+
     HFONT m_hFont = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
@@ -136,11 +183,11 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 #else
         const UINT cp = CP_ACP;
 #endif
-
         stdt::string fullfile;
         {
             stdt::string line;
             RadITextFile itf(m_FileName.c_str(), CP_ACP);
+            CHECK_LE_RET(itf.Valid(), FALSE); // TODO This should be a user friendly message
             while (itf.ReadLine(line, cp))
                 fullfile += line;
         }
@@ -164,6 +211,9 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     case ID_FILE_CLOSE:
         SendMessage(*this, WM_CLOSE, 0, 0);
         // TODO Should we use WM_MDIDESTROY instead?
+        break;
+    case ID_FILE_SAVE:
+        Save();
         break;
     case ID_EDIT:
         switch (codeNotify)
@@ -212,7 +262,7 @@ void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         switch (mii.wID)
         {
         case ID_FILE_SAVE:
-            mii.fState = MFS_DISABLED;
+            mii.fState = m_modified ? MFS_ENABLED : MFS_DISABLED;
             SetMenuItemInfo(hMenu, i, TRUE, &mii);
             break;
         }

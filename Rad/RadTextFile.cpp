@@ -58,6 +58,11 @@ void RadITextFile::DetermineEncoding(UINT defcp)
 {
     if (m_buffer.size() < 3)
         FillBuffer();
+    if (m_buffer.size() < 3)
+    {
+        m_cp = CP_ACP;
+        return;
+    }
     const ByteOrderMark enc = ::DetermineByteOrderMark(m_buffer);
     switch (enc)
     {
