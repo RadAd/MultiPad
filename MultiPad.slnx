@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="MultiPad.vcxproj" />
+  <Project Path="MultiPad.vcxproj" Id="320ae5f4-47f6-4a46-b6a9-abdf5e8c9f28" />
 </Solution>

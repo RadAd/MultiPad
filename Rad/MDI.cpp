@@ -107,7 +107,7 @@ LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& 
 {
     switch (uMsg)
     {
-    case WM_NCCREATE:
+    case WM_CREATE:
         CreateMDIClient();
         break;
 
@@ -121,7 +121,7 @@ LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& 
 
     const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
 
-    if (bHandled && uMsg == WM_SIZE)
+    if (bHandled && (uMsg == WM_COMMAND || uMsg == WM_MENUCHAR || uMsg == WM_SETFOCUS || uMsg == WM_SIZE))
         DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam);
 
     return bHandled ? ret : (bHandled = true, DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam));
@@ -156,7 +156,7 @@ LRESULT MDIChild::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& 
 {
     const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
 
-    if (bHandled && uMsg == WM_SIZE)
+    if (bHandled && (uMsg == WM_CHILDACTIVATE || uMsg == WM_GETMINMAXINFO || uMsg == WM_MENUCHAR || uMsg == WM_MOVE || uMsg == WM_SETFOCUS || uMsg == WM_SIZE || uMsg == WM_SYSCOMMAND))
         DefMDIChildProc(*this, uMsg, wParam, lParam);
 
     return bHandled ? ret : (bHandled = true, DefMDIChildProc(*this, uMsg, wParam, lParam));

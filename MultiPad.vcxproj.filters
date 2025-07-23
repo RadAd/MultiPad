@@ -60,9 +60,13 @@
       <Filter>Rad</Filter>
     </ClInclude>
     <ClInclude Include="WinMainSetup.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Rad">
     </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MultiPad.rc" />
   </ItemGroup>
 </Project>
