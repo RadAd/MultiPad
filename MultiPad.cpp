@@ -4,10 +4,21 @@
 #include "Rad/WinError.h"
 #include "Rad/MemoryPlus.h"
 #include <CommCtrl.h>
+#include <CommDlg.h>
+#include <shlwapi.h>
 #include <tchar.h>
 #include <strsafe.h>
 #include <vector>
 #include "resource.h"
+
+namespace stdt
+{
+#ifdef UNICODE
+    using string = std::wstring;
+#else
+    using string = std::string;
+#endif
+}
 
 extern HINSTANCE g_hInstance;
 extern HACCEL g_hAccelTable;
@@ -49,6 +60,7 @@ public:
     struct Init
     {
         HFONT hFont;
+        LPCTSTR pFileName;
         BOOL Maximized;
     };
     static ATOM Register() { return ::Register<Class>(); }
@@ -92,6 +104,7 @@ private:
     void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
 
     HFONT m_hFont = NULL;
+    stdt::string m_FileName;
     HWND m_hWndChild = NULL;
 };
 
@@ -99,6 +112,8 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
     const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
     m_hFont = init.hFont;
+    m_FileName = init.pFileName ? init.pFileName : TEXT("");
+    SetWindowText(*this, m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str()));
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), 0);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
     return TRUE;
@@ -262,12 +277,29 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         BOOL bMaximized = FALSE;
         if (GetActiveChild(&bMaximized) == NULL)
             bMaximized = TRUE;
-        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, bMaximized }));
+        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, nullptr, bMaximized }));
         break;
     }
     case ID_FILE_OPEN:
-        //RadDialog::Create<OpenFileDialog>(*this);
+    {
+        OPENFILENAME ofn = {};
+        TCHAR szFileName[MAX_PATH] = {};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = *this;
+        ofn.lpstrFilter = TEXT("Text Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0");
+        ofn.lpstrFile = szFileName;
+        ofn.nMaxFile = ARRAYSIZE(szFileName);
+        ofn.lpstrTitle = TEXT("Open Text File");
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+        if (GetOpenFileName(&ofn))
+        {
+            BOOL bMaximized = FALSE;
+            if (GetActiveChild(&bMaximized) == NULL)
+                bMaximized = TRUE;
+            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, bMaximized });
+        }
         break;
+    }
     case ID_FILE_EXIT:
         SendMessage(*this, WM_CLOSE, 0, 0);
         break;
