@@ -2,10 +2,16 @@
 #include "Rad/Dialog.h"
 #include "Rad/Windowxx.h"
 #include "Rad/WinError.h"
+#include "Rad/MemoryPlus.h"
 #include <CommCtrl.h>
-//#include <tchar.h>
-//#include <strsafe.h>
+#include <tchar.h>
+#include <strsafe.h>
+#include <vector>
 #include "resource.h"
+
+extern HINSTANCE g_hInstance;
+extern HACCEL g_hAccelTable;
+extern HWND g_hWndAccel;
 
 const TCHAR* g_ProjectName = TEXT("MultiPad");
 const TCHAR* g_ProjectTitle = TEXT("MultiPad");
@@ -182,6 +188,7 @@ protected:
             HANDLE_MSG(WM_DESTROY, OnDestroy);
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_INITMENUPOPUP, OnInitMenuPopup);
+            HANDLE_MSG(WM_ACTIVATE, OnActivate);
         }
 
         if (!IsHandled())
@@ -201,10 +208,15 @@ private:
     void OnDestroy();
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
+    void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
+
+private:
+    HACCEL m_hAccelTable = NULL;
 };
 
 BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
+    m_hAccelTable = LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
     return TRUE;
 }
 
@@ -251,16 +263,44 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     }
 }
 
+std::vector<ACCEL> GetAccelerators(HACCEL hAccelTable)
+{
+    std::vector<ACCEL> accels;
+    if (hAccelTable)
+    {
+        int count = CopyAcceleratorTable(hAccelTable, NULL, 0);
+        if (count > 0)
+        {
+            accels.resize(count);
+            CHECK_LE(CopyAcceleratorTable(hAccelTable, accels.data(), count));
+        }
+    }
+    return accels;
+}
+
+LPCTSTR ToString(TCHAR c)
+{
+    thread_local TCHAR str[] = TEXT("_");
+    str[0] = c;
+    return str;
+}
+
 void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
 {
     const HWND hWndActive = GetActiveChild();
 
+    std::vector<ACCEL> accels;
+
+    TCHAR label[100] = {};
     MENUITEMINFO mii = {};
     mii.cbSize = sizeof(MENUITEMINFO);
-    mii.fMask = MIIM_STATE | MIIM_ID;
+    mii.fMask = MIIM_STATE | MIIM_ID | MIIM_STRING;
+    mii.dwTypeData = label;
     const int count = GetMenuItemCount(hMenu);
     for (int i = 0; i < count; ++i)
     {
+        bool changed = false;
+        mii.cch = ARRAYSIZE(label);
         CHECK_LE(GetMenuItemInfo(hMenu, i, TRUE, &mii));
         switch (mii.wID)
         {
@@ -270,13 +310,50 @@ void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         case ID_WINDOW_TILEVERTICAL:
         case ID_WINDOW_CASCADE:
             mii.fState = hWndActive ? MFS_ENABLED : MFS_DISABLED;
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            changed = true;
             break;
         }
+
+        if (m_hAccelTable && _tcschr(label, TEXT('\t')) == nullptr)
+        {
+            if (accels.empty())
+                accels = GetAccelerators(m_hAccelTable);
+            CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("\t")));
+            auto it = std::find_if(accels.begin(), accels.end(), [&mii](const ACCEL& a) { return a.cmd == mii.wID; });
+            if (it != accels.end())
+            {
+                if (it->fVirt & FCONTROL)
+                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Ctrl+")));
+                if (it->fVirt & FALT)
+                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Alt+")));
+                if (it->fVirt & FSHIFT)
+                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Shift+")));
+                // TODO Wont wont work for non-ASCII characters
+                CHECK_HR(StringCchCat(label, ARRAYSIZE(label), ToString(it->key)));
+                changed = true;
+            }
+        }
+
+        if (changed)
+            CHECK_LE(SetMenuItemInfo(hMenu, i, TRUE, &mii));
     }
 
     if (hWndActive)
         FORWARD_WM_INITMENUPOPUP(hWndActive, hMenu, item, fSystemMenu, SendMessage);
+}
+
+void RootWindow::OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized)
+{
+    if (state)
+    {
+        g_hAccelTable = m_hAccelTable;
+        g_hWndAccel = *this;
+    }
+    else if (g_hAccelTable == m_hAccelTable)
+    {
+        g_hAccelTable = NULL;
+        g_hWndAccel = NULL;
+    }
 }
 
 bool Run(_In_ const LPCTSTR lpCmdLine, _In_ const int nShowCmd)
