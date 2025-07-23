@@ -126,7 +126,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
     m_hFont = init.hFont;
     m_FileName = init.pFileName ? init.pFileName : TEXT("");
-    m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), ID_EDIT);
+    m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
 
     if (!m_FileName.empty())
