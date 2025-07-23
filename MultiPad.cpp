@@ -106,7 +106,6 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 
 void TextDocWindow::OnDestroy()
 {
-    DeleteObject(m_hFont);
 }
 
 void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
@@ -228,6 +227,7 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 
 void RootWindow::OnDestroy()
 {
+    DeleteObject(m_hFont);
     PostQuitMessage(0);
 }
 
