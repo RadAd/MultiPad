@@ -121,7 +121,7 @@ LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& 
 
     const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
 
-    if (bHandled && (uMsg == WM_COMMAND || uMsg == WM_MENUCHAR || uMsg == WM_SETFOCUS || uMsg == WM_SIZE))
+    if (bHandled && (uMsg == WM_COMMAND || uMsg == WM_MENUCHAR || uMsg == WM_SETFOCUS /*|| uMsg == WM_SIZE*/))
         DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam);
 
     return bHandled ? ret : (bHandled = true, DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam));

@@ -181,6 +181,7 @@ protected:
         {
             HANDLE_MSG(WM_CREATE, OnCreate);
             HANDLE_MSG(WM_DESTROY, OnDestroy);
+            HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_INITMENUPOPUP, OnInitMenuPopup);
             HANDLE_MSG(WM_ACTIVATE, OnActivate);
@@ -201,6 +202,7 @@ protected:
 private:
     BOOL OnCreate(LPCREATESTRUCT lpCreateStruct);
     void OnDestroy();
+    void OnSize(UINT state, int cx, int cy);
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
     void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
@@ -208,6 +210,7 @@ private:
 private:
     HFONT m_hFont = NULL;
     HACCEL m_hAccelTable = NULL;
+    HWND m_hStatusBar = NULL;
 };
 
 BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
@@ -222,6 +225,8 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
         DEFAULT_PITCH | FF_DONTCARE,
         TEXT("Consolas")));
 
+    m_hStatusBar = CHECK_LE(CreateStatusWindow(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, TEXT("Ready"), *this, 0));
+
     return TRUE;
 }
 
@@ -229,6 +234,23 @@ void RootWindow::OnDestroy()
 {
     DeleteObject(m_hFont);
     PostQuitMessage(0);
+}
+
+void RootWindow::OnSize(UINT state, int cx, int cy)
+{
+    if (m_hStatusBar)
+    {
+        FORWARD_WM_SIZE(m_hStatusBar, state, cx, cy, SendMessage);
+        RECT rcStatusBar;
+        CHECK_LE(GetWindowRect(m_hStatusBar, &rcStatusBar));
+
+        RECT rcMDIClient;
+        CHECK_LE(GetClientRect(*this, &rcMDIClient));
+        rcMDIClient.bottom -= Height(rcStatusBar);
+        CHECK_LE(SetWindowPos(GetMDIClient(), NULL, rcMDIClient.left, rcMDIClient.top, Width(rcMDIClient), Height(rcMDIClient), SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW));
+    }
+    else
+        SetHandled(false);
 }
 
 void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
