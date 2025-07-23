@@ -53,6 +53,8 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
     return hWnd;
 }
 
+#define ID_EDIT 213
+
 class TextDocWindow : public MDIChild
 {
     friend WindowManager<TextDocWindow>;
@@ -104,9 +106,19 @@ private:
     void OnSetFocus(HWND hwndOldFocus);
     void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
 
+private:
+    void SetTitle()
+    {
+        stdt::string title = m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str());
+        if (m_modified)
+            title += TEXT('*');
+        SetWindowText(*this, title.c_str());
+    }
+
     HFONT m_hFont = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
+    bool m_modified = false;
 };
 
 BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
@@ -114,8 +126,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
     m_hFont = init.hFont;
     m_FileName = init.pFileName ? init.pFileName : TEXT("");
-    SetWindowText(*this, m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str()));
-    m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), 0);
+    m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | ES_MULTILINE, RECT(), ID_EDIT);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
 
     if (!m_FileName.empty())
@@ -136,6 +147,8 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
         if (!fullfile.empty())
             Edit_SetText(m_hWndChild, fullfile.c_str());
     }
+    m_modified = false;
+    SetTitle();
 
     return TRUE;
 }
@@ -151,6 +164,18 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     case ID_FILE_CLOSE:
         SendMessage(*this, WM_CLOSE, 0, 0);
         // TODO Should we use WM_MDIDESTROY instead?
+        break;
+    case ID_EDIT:
+        switch (codeNotify)
+        {
+        case EN_CHANGE:
+            if (!m_modified)
+            {
+                m_modified = true;
+                SetTitle();
+            }
+            break;
+        }
         break;
     default:
         SetHandled(false);
