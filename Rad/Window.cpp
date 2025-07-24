@@ -104,6 +104,14 @@ LRESULT CALLBACK WindowBase::s_WndProc(const HWND hWnd, const UINT uMsg, const W
 
     bool bHandled = false;
     const LRESULT ret = MessageHandler::s_WndProc(hWnd, uMsg, wParam, lParam, bHandled);
+
+    if (uMsg == WM_CREATE && ret == -1)
+    {
+        // This will get deleted later
+        //self->Set(NULL);
+        Store(hWnd, nullptr);
+    }
+
     return bHandled ? ret : DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
