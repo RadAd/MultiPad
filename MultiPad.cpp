@@ -17,7 +17,6 @@
 // Document icon
 // Toolbar
 // Status bar cursor pos/selection
-// Save As
 // Warn when closing an unsaved file
 // Monitor for file updates
 // Multi undo
@@ -54,6 +53,12 @@ extern HWND g_hWndAccel;
 
 const TCHAR* g_ProjectName = TEXT("MultiPad");
 const TCHAR* g_ProjectTitle = TEXT("MultiPad");
+
+inline void SetFlag(UINT& v, UINT mask, UINT n)
+{
+    _ASSERT((~mask & n) == 0);
+    v = (~mask & v) | (mask & n);
+}
 
 inline LONG Width(const RECT r)
 {
@@ -142,8 +147,35 @@ private:
         SetWindowText(*this, title.c_str());
     }
 
+    bool SelectFileName()
+    {
+        OPENFILENAME ofn = {};
+        TCHAR szFileName[MAX_PATH] = {};
+        ofn.lStructSize = sizeof(ofn);
+        ofn.hwndOwner = *this;
+        ofn.lpstrFilter = TEXT("Text Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0");
+        ofn.lpstrFile = szFileName;
+        ofn.nMaxFile = ARRAYSIZE(szFileName);
+        ofn.lpstrTitle = TEXT("Save Text File");
+        ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+        if (GetSaveFileName(&ofn))
+        {
+            m_FileName = szFileName;
+            return true;
+#if 0
+            BOOL bMaximized = FALSE;
+            if (GetActiveChild(&bMaximized) == NULL)
+                bMaximized = TRUE;
+            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, bMaximized });
+#endif
+        }
+        else
+            return false;
+    }
+
     void Save()
     {
+        _ASSERT(!m_FileName.empty());
         // TODO Use text control handle
         stdt::string text;
         text.resize(GetWindowTextLength(m_hWndChild));
@@ -213,7 +245,12 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         // TODO Should we use WM_MDIDESTROY instead?
         break;
     case ID_FILE_SAVE:
-        Save();
+        if (!m_FileName.empty() || SelectFileName())
+            Save();
+        break;
+    case ID_FILE_SAVEAS:
+        if (SelectFileName())
+            Save();
         break;
     case ID_EDIT:
         switch (codeNotify)
@@ -262,7 +299,8 @@ void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         switch (mii.wID)
         {
         case ID_FILE_SAVE:
-            mii.fState = m_modified ? MFS_ENABLED : MFS_DISABLED;
+        case ID_FILE_SAVEAS:
+            SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, m_modified ? MFS_ENABLED : MFS_DISABLED);
             SetMenuItemInfo(hMenu, i, TRUE, &mii);
             break;
         }
@@ -460,12 +498,13 @@ void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         CHECK_LE(GetMenuItemInfo(hMenu, i, TRUE, &mii));
         switch (mii.wID)
         {
-        case ID_FILE_SAVE:
-        case ID_FILE_CLOSE:
-        case ID_WINDOW_TILEHORIZONTAL:
-        case ID_WINDOW_TILEVERTICAL:
-        case ID_WINDOW_CASCADE:
-            mii.fState = hWndActive ? MFS_ENABLED : MFS_DISABLED;
+        case ID_FILE_NEW:
+        case ID_FILE_OPEN:
+        case ID_FILE_EXIT:
+            break;
+
+        default:
+            SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, hWndActive ? MFS_ENABLED : MFS_DISABLED);
             changed = true;
             break;
         }
