@@ -14,13 +14,17 @@
 #define ID_WINDOW_TILEVERTICAL          40008
 #define ID_WINDOW_CASCADE               40009
 #define ID_FILE_SAVEAS                  40017
+#define ID_FILE_LINEENDINGS             40018
+#define ID_LINEENDINGS_WINDOWS          40019
+#define ID_LINEENDINGS_UNIX             40020
+#define ID_LINEENDINGS_MACINTOSH        40021
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40018
+#define _APS_NEXT_COMMAND_VALUE         40022
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

@@ -20,7 +20,6 @@
 // Warn when closing an unsaved file
 // Monitor for file updates
 // Multi undo
-// Support for line endings
 // Support for bom
 // Word boundaries
 // Save position in registry
@@ -42,8 +41,10 @@ namespace stdt
 {
 #ifdef UNICODE
     using string = std::wstring;
+    using string_view = std::wstring_view;
 #else
     using string = std::string;
+    using string_view = std::string_view;
 #endif
 }
 
@@ -53,6 +54,23 @@ extern HWND g_hWndAccel;
 
 const TCHAR* g_ProjectName = TEXT("MultiPad");
 const TCHAR* g_ProjectTitle = TEXT("MultiPad");
+
+inline stdt::string_view right(stdt::string_view sv, size_t len)
+{
+    if (sv.size() <= len)
+        return sv;
+    return sv.substr(sv.size() - len);
+}
+
+inline void replaceAll(stdt::string& str, stdt::string_view from, stdt::string_view to)
+{
+    size_t start_pos = str.find(from);
+    while (start_pos != std::string::npos)
+    {
+        str.replace(start_pos, from.length(), to);
+        start_pos = str.find(from, start_pos + to.length());
+    }
+}
 
 inline void SetFlag(UINT& v, UINT mask, UINT n)
 {
@@ -162,12 +180,6 @@ private:
         {
             m_FileName = szFileName;
             return true;
-#if 0
-            BOOL bMaximized = FALSE;
-            if (GetActiveChild(&bMaximized) == NULL)
-                bMaximized = TRUE;
-            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, bMaximized });
-#endif
         }
         else
             return false;
@@ -180,6 +192,12 @@ private:
         stdt::string text;
         text.resize(GetWindowTextLength(m_hWndChild));
         GetWindowText(m_hWndChild, text.data(), static_cast<int>(text.size() + 1));
+
+        switch (m_LineEndings)
+        {
+        case LineEndings::Unix:         replaceAll(text, TEXT("\r\n"), TEXT("\n")); break;
+        case LineEndings::Macintosh:    replaceAll(text, TEXT("\r\n"), TEXT("\r")); break;
+        }
 
 #ifdef UNICODE
         const UINT cp = CP_UTF16_LE;
@@ -194,10 +212,22 @@ private:
         SetTitle();
     }
 
+    void SetModified()
+    {
+        if (!m_modified)
+        {
+            m_modified = true;
+            SetTitle();
+        }
+    }
+
     HFONT m_hFont = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
     bool m_modified = false;
+
+    enum class LineEndings { Windows, Unix, Macintosh };
+    LineEndings m_LineEndings = LineEndings::Windows;
 };
 
 BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
@@ -217,11 +247,41 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 #endif
         stdt::string fullfile;
         {
+            int windowsle = 0;
+            int linuxle = 0;
+            int macosle = 0;
+
             stdt::string line;
             RadITextFile itf(m_FileName.c_str(), CP_ACP);
             CHECK_LE_RET(itf.Valid(), FALSE); // TODO This should be a user friendly message
             while (itf.ReadLine(line, cp))
+            {
+                if (right(line, 2) == TEXT("\r\n"))
+                    ++windowsle;
+                else if (right(line, 1) == TEXT("\n"))
+                {
+                    ++linuxle;
+                    line.insert(line.size() - 1, 1, TEXT('\r'));
+                }
+                else if (right(line, 1) == TEXT("\r"))
+                {
+                    ++macosle;
+                    line.insert(line.size(), 1, TEXT('\n'));
+                }
                 fullfile += line;
+            }
+
+            if ((windowsle != 0 && linuxle != 0) || (windowsle != 0 && macosle != 0) || (linuxle != 0 && macosle != 0))
+            {
+                MessageBox(*this, TEXT("File has mixed line endings. Converting to windows."), g_ProjectTitle, MB_ICONASTERISK | MB_OK);
+                m_LineEndings = LineEndings::Windows;
+            }
+            else if (windowsle > 0)
+                m_LineEndings = LineEndings::Windows;
+            else if (linuxle > 0)
+                m_LineEndings = LineEndings::Unix;
+            else if (macosle > 0)
+                m_LineEndings = LineEndings::Macintosh;
         }
         if (!fullfile.empty())
             Edit_SetText(m_hWndChild, fullfile.c_str());
@@ -252,15 +312,23 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         if (SelectFileName())
             Save();
         break;
+    case ID_LINEENDINGS_WINDOWS:
+        m_LineEndings = LineEndings::Windows;
+        SetModified();
+        break;
+    case ID_LINEENDINGS_UNIX:
+        m_LineEndings = LineEndings::Unix;
+        SetModified();
+        break;
+    case ID_LINEENDINGS_MACINTOSH:
+        m_LineEndings = LineEndings::Macintosh;
+        SetModified();
+        break;
     case ID_EDIT:
         switch (codeNotify)
         {
         case EN_CHANGE:
-            if (!m_modified)
-            {
-                m_modified = true;
-                SetTitle();
-            }
+            SetModified();
             break;
         }
         break;
@@ -288,6 +356,12 @@ void TextDocWindow::OnSetFocus(const HWND hwndOldFocus)
 
 void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
 {
+    if (fSystemMenu)
+    {
+        SetHandled(false);
+        return;
+    }
+
     const int count = GetMenuItemCount(hMenu);
 
     MENUITEMINFO mii = {};
@@ -301,6 +375,19 @@ void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         case ID_FILE_SAVE:
         case ID_FILE_SAVEAS:
             SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, m_modified ? MFS_ENABLED : MFS_DISABLED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+
+        case ID_LINEENDINGS_WINDOWS:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Windows ? MFS_CHECKED : MFS_UNCHECKED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+        case ID_LINEENDINGS_UNIX:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Unix ? MFS_CHECKED : MFS_UNCHECKED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+        case ID_LINEENDINGS_MACINTOSH:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Macintosh ? MFS_CHECKED : MFS_UNCHECKED);
             SetMenuItemInfo(hMenu, i, TRUE, &mii);
             break;
         }
@@ -342,6 +429,7 @@ protected:
         return ret;
     }
 
+private:
     HWND GetActiveChild(BOOL* b = nullptr) const
     {
         HWND hWndChild = (HWND) SendMessage(GetMDIClient(), WM_MDIGETACTIVE, 0, (INT_PTR) b);
@@ -481,6 +569,13 @@ LPCTSTR ToString(TCHAR c)
 
 void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
 {
+    UINT id0 = GetMenuItemID(hMenu, 0);
+    if (fSystemMenu || GetMenuItemID(hMenu, 0) == SC_RESTORE)
+    {
+        SetHandled(false);
+        return;
+    }
+
     const HWND hWndActive = GetActiveChild();
 
     std::vector<ACCEL> accels;
@@ -496,8 +591,12 @@ void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         bool changed = false;
         mii.cch = ARRAYSIZE(label);
         CHECK_LE(GetMenuItemInfo(hMenu, i, TRUE, &mii));
+
         switch (mii.wID)
         {
+        case 0xFFFF:    // SubMenu
+            break;
+
         case ID_FILE_NEW:
         case ID_FILE_OPEN:
         case ID_FILE_EXIT:
