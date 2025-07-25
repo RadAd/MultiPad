@@ -20,7 +20,6 @@
 // Warn when closing an unsaved file
 // Monitor for file updates
 // Multi undo
-// Support for bom
 // Word boundaries
 // Save position in registry
 // Choose font
@@ -114,6 +113,7 @@ public:
     {
         HFONT hFont;
         LPCTSTR pFileName;
+        DWORD cp;
         BOOL Maximized;
     };
     static ATOM Register() { return ::Register<Class>(); }
@@ -236,6 +236,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
     m_hFont = init.hFont;
     m_FileName = init.pFileName ? init.pFileName : TEXT("");
+    m_cp = init.cp;
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
 
@@ -253,7 +254,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
             int macosle = 0;
 
             stdt::string line;
-            RadITextFile itf(m_FileName.c_str(), CP_ACP);
+            RadITextFile itf(m_FileName.c_str(), m_cp);
             CHECK_LE_RET(itf.Valid(), FALSE); // TODO This should be a user friendly message
             while (itf.ReadLine(line, cp))
             {
@@ -528,6 +529,8 @@ void RootWindow::OnSize(UINT state, int cx, int cy)
         SetHandled(false);
 }
 
+bool FileOpenDialog(HWND hWndOwner, std::wstring& filename, DWORD& cp);
+
 void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
 {
     switch (id)
@@ -537,11 +540,22 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         BOOL bMaximized = FALSE;
         if (GetActiveChild(&bMaximized) == NULL)
             bMaximized = TRUE;
-        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, nullptr, bMaximized }));
+        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, nullptr, CP_ACP, bMaximized }));
         break;
     }
     case ID_FILE_OPEN:
     {
+#if 1
+        stdt::string filename;
+        DWORD cp = CP_ACP;
+        if (FileOpenDialog(*this, filename, cp))
+        {
+            BOOL bMaximized = FALSE;
+            if (GetActiveChild(&bMaximized) == NULL)
+                bMaximized = TRUE;
+            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, filename.c_str(), cp, bMaximized});
+        }
+#else
         OPENFILENAME ofn = {};
         TCHAR szFileName[MAX_PATH] = {};
         ofn.lStructSize = sizeof(ofn);
@@ -556,8 +570,9 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             BOOL bMaximized = FALSE;
             if (GetActiveChild(&bMaximized) == NULL)
                 bMaximized = TRUE;
-            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, bMaximized });
+            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, CP_ACP, bMaximized });
         }
+#endif
         break;
     }
     case ID_FILE_EXIT:
