@@ -204,7 +204,7 @@ private:
 #else
         const UINT cp = CP_ACP;
 #endif
-        RadOTextFile otf(m_FileName.c_str(), CP_ACP, true);
+        RadOTextFile otf(m_FileName.c_str(), m_cp, true);
         if (!CHECK_LE(otf.Valid())) return; // TODO This should be a user friendly message
         otf.Write(text, cp);
 
@@ -227,6 +227,7 @@ private:
     bool m_modified = false;
 
     enum class LineEndings { Windows, Unix, Macintosh };
+    UINT m_cp = CP_ACP;
     LineEndings m_LineEndings = LineEndings::Windows;
 };
 
@@ -271,6 +272,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                 fullfile += line;
             }
 
+            m_cp = itf.GetCodePage();
             if ((windowsle != 0 && linuxle != 0) || (windowsle != 0 && macosle != 0) || (linuxle != 0 && macosle != 0))
             {
                 MessageBox(*this, TEXT("File has mixed line endings. Converting to windows."), g_ProjectTitle, MB_ICONASTERISK | MB_OK);
@@ -311,6 +313,22 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     case ID_FILE_SAVEAS:
         if (SelectFileName())
             Save();
+        break;
+    case ID_ENCODING_ANSI:
+        m_cp = CP_ACP;
+        SetModified();
+        break;
+    case ID_ENCODING_UTF8:
+        m_cp = CP_UTF8;
+        SetModified();
+        break;
+    case ID_ENCODING_UTF16_BE:
+        m_cp = CP_UTF16_BE;
+        SetModified();
+        break;
+    case ID_ENCODING_UTF16_LE:
+        m_cp = CP_UTF16_LE;
+        SetModified();
         break;
     case ID_LINEENDINGS_WINDOWS:
         m_LineEndings = LineEndings::Windows;
@@ -375,6 +393,26 @@ void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
         case ID_FILE_SAVE:
         case ID_FILE_SAVEAS:
             SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, m_modified ? MFS_ENABLED : MFS_DISABLED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+
+        case ID_ENCODING_ANSI:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_ACP ? MFS_CHECKED : MFS_UNCHECKED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+
+        case ID_ENCODING_UTF8:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF8 ? MFS_CHECKED : MFS_UNCHECKED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+
+        case ID_ENCODING_UTF16_BE:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF16_BE ? MFS_CHECKED : MFS_UNCHECKED);
+            SetMenuItemInfo(hMenu, i, TRUE, &mii);
+            break;
+
+        case ID_ENCODING_UTF16_LE:
+            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF16_LE ? MFS_CHECKED : MFS_UNCHECKED);
             SetMenuItemInfo(hMenu, i, TRUE, &mii);
             break;
 

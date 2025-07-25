@@ -18,13 +18,18 @@
 #define ID_LINEENDINGS_WINDOWS          40019
 #define ID_LINEENDINGS_UNIX             40020
 #define ID_LINEENDINGS_MACINTOSH        40021
+#define ID_FILE_ENCODING                40022
+#define ID_ENCODING_ANSI                40023
+#define ID_ENCODING_UTF8                40024
+#define ID_ENCODING_UTF16_BE            40025
+#define ID_ENCODING_UTF16_LE            40026
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40022
+#define _APS_NEXT_COMMAND_VALUE         40027
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

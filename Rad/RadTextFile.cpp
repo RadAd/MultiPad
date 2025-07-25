@@ -75,12 +75,12 @@ void RadITextFile::DetermineEncoding(UINT defcp)
     }
 }
 
-inline std::vector<std::byte>::iterator findEndOfLine(std::vector<std::byte>& buffer, bool littleEndian)
+inline std::vector<std::byte>::iterator findEndOfLine(std::vector<std::byte>& buffer, bool bit16)
 {
     auto it = std::find_if(buffer.begin(), buffer.end(), [](const std::byte b) { return b == std::byte('\r') || b == std::byte('\n'); });
     if (it != buffer.end() && *it == std::byte('\r'))
     {
-        auto it2 = std::next(it, littleEndian ? 2 : 1);
+        auto it2 = std::next(it, bit16 ? 2 : 1);
         if (it2 != buffer.end() && *it2 == std::byte('\n'))
             it = it2;
     }
@@ -90,7 +90,7 @@ inline std::vector<std::byte>::iterator findEndOfLine(std::vector<std::byte>& bu
 template <class T>
 bool RadITextFile::ReadLineInternal(T& line, bool swap)
 {
-    auto it = findEndOfLine(m_buffer, IsLittleEndian(m_cp));
+    auto it = findEndOfLine(m_buffer, IsWide16(m_cp));
     if (it != m_buffer.end())
         return extract(line, it + (IsLittleEndian(m_cp) ? 2 : 1), swap), true;
 
