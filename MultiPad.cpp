@@ -395,6 +395,9 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         case EN_CHANGE:
             SetModified();
             break;
+        case EN_ERRSPACE:
+            MessageBox(*this, TEXT("Not enough memory to complete the operation."), g_ProjectTitle, MB_ICONERROR | MB_OK);
+            break;
         }
         break;
     default:
