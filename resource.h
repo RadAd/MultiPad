@@ -23,13 +23,14 @@
 #define ID_ENCODING_UTF8                40024
 #define ID_ENCODING_UTF16_BE            40025
 #define ID_ENCODING_UTF16_LE            40026
+#define ID_VIEW_WHITESPACE              40027
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40027
+#define _APS_NEXT_COMMAND_VALUE         40028
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

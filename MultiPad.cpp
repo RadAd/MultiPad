@@ -224,12 +224,14 @@ private:
 
     void SetStatusBarText()
     {
-        const EditData* ped = EditGetData(m_hWndChild);
-        _ASSERT(ped->nCursor == ped->nSelStart || ped->nCursor == ped->nSelEnd);
-        const POINT editpos = EditGetPos(m_hWndChild, ped->nCursor);
-        StatusBar_SetText(m_hStatusBar, 1, ped->nSelEnd == ped->nSelStart
+        DWORD nCaretPos, nSelStart, nSelEnd;
+        nCaretPos = EditGetCaret(m_hWndChild);
+        Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
+        _ASSERT(nCaretPos == nSelStart || nCaretPos == nSelEnd);
+        const POINT editpos = EditGetPos(m_hWndChild, nCaretPos);
+        StatusBar_SetText(m_hStatusBar, 1, nSelEnd == nSelStart
             ? Format(TEXT("Ln %d, Col %d"), editpos.y, editpos.x)
-            : Format(TEXT("Ln %d, Col %d, Sel %d"), editpos.y, editpos.x, ped->nSelEnd - ped->nSelStart));
+            : Format(TEXT("Ln %d, Col %d, Sel %d"), editpos.y, editpos.x, nSelEnd - nSelStart));
     }
 
     HFONT m_hFont = NULL;
@@ -256,7 +258,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_CommandStateChain.Init(this);
 
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
-    SetWindowSubclass(m_hWndChild, EditExProc, 0, 0);
+    SetWindowSubclass(m_hWndChild, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({})));
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
     Edit_LimitText(m_hWndChild, 0);
 
@@ -387,6 +389,12 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         m_LineEndings = LineEndings::Macintosh;
         SetModified();
         break;
+    case ID_VIEW_WHITESPACE:
+    {
+        const BOOL bViewWhitespace = (BOOL) SendMessage(m_hWndChild, EM_EX_GETVIEWWHITESPACE, 0, 0);
+        SendMessage(m_hWndChild, EM_EX_SETVIEWWHITESPACE, !bViewWhitespace, 0);
+        break;
+    }
     case ID_EDIT:
         switch (codeNotify)
         {
@@ -435,8 +443,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
 {
     switch (id)
     {
-    case ID_FILE_SAVE:
-    case ID_FILE_SAVEAS:            state.enabled = m_modified; break;
+    case ID_FILE_SAVE:              state.enabled = m_modified; break;
     case ID_ENCODING_ANSI:          state.checked = m_cp == CP_ACP; break;
     case ID_ENCODING_UTF8:          state.checked = m_cp == CP_UTF8; break;
     case ID_ENCODING_UTF16_BE:      state.checked = m_cp == CP_UTF16_BE; break;
@@ -444,6 +451,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
     case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
+    case ID_VIEW_WHITESPACE:        state.checked = (BOOL) SendMessage(m_hWndChild, EM_EX_GETVIEWWHITESPACE, 0, 0); break;
     }
 }
 
