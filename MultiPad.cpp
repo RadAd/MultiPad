@@ -12,6 +12,9 @@
 #include <vector>
 #include "resource.h"
 
+#include "CommandStateChain.h"
+#include "ShowMenuShortcutChain.h"
+
 // TODO
 // Application icon
 // Document icon
@@ -71,12 +74,6 @@ inline void replaceAll(stdt::string& str, stdt::string_view from, stdt::string_v
     }
 }
 
-inline void SetFlag(UINT& v, UINT mask, UINT n)
-{
-    _ASSERT((~mask & n) == 0);
-    v = (~mask & v) | (mask & n);
-}
-
 inline LONG Width(const RECT r)
 {
     return r.right - r.left;
@@ -104,7 +101,7 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
 
 #define ID_EDIT 213
 
-class TextDocWindow : public MDIChild
+class TextDocWindow : public MDIChild, protected CommandState
 {
     friend WindowManager<TextDocWindow>;
     using Class = ChildClass;
@@ -139,9 +136,19 @@ protected:
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_SETFOCUS, OnSetFocus);
-            HANDLE_MSG(WM_INITMENUPOPUP, OnInitMenuPopup);
         }
 
+        MessageChain* Chains[] = { &m_CommandStateChain };
+        for (MessageChain* pChain : Chains)
+        {
+            //if (IsHandled())
+                //break;
+
+            bool bHandled = false;
+            ret = pChain->ProcessMessage(*this, uMsg, wParam, lParam, bHandled);
+            if (bHandled)
+                SetHandled(true);
+        }
         if (!IsHandled())
             ret = MDIChild::HandleMessage(uMsg, wParam, lParam);
 
@@ -154,7 +161,6 @@ private:
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnSize(UINT state, int cx, int cy);
     void OnSetFocus(HWND hwndOldFocus);
-    void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
 
 private:
     void SetTitle()
@@ -230,6 +236,8 @@ private:
         }
     }
 
+    void GetState(UINT id, State& state) const;
+
     HFONT m_hFont = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
@@ -238,6 +246,8 @@ private:
     enum class LineEndings { Windows, Unix, Macintosh };
     UINT m_cp = CP_ACP;
     LineEndings m_LineEndings = LineEndings::Windows;
+
+    CommandStateChain m_CommandStateChain;
 };
 
 BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
@@ -246,6 +256,9 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_hFont = init.hFont;
     m_FileName = init.pFileName ? init.pFileName : TEXT("");
     m_cp = init.cp;
+
+    m_CommandStateChain.Init(this);
+
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
 
@@ -406,67 +419,23 @@ void TextDocWindow::OnSetFocus(const HWND hwndOldFocus)
         SetFocus(m_hWndChild);
 }
 
-void TextDocWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
+void TextDocWindow::GetState(UINT id, State& state) const
 {
-    if (fSystemMenu)
+    switch (id)
     {
-        SetHandled(false);
-        return;
-    }
-
-    const int count = GetMenuItemCount(hMenu);
-
-    MENUITEMINFO mii = {};
-    mii.cbSize = sizeof(MENUITEMINFO);
-    mii.fMask = MIIM_STATE | MIIM_ID;
-    for (int i = 0; i < count; ++i)
-    {
-        CHECK_LE(GetMenuItemInfo(hMenu, i, TRUE, &mii));
-        switch (mii.wID)
-        {
-        case ID_FILE_SAVE:
-        case ID_FILE_SAVEAS:
-            SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, m_modified ? MFS_ENABLED : MFS_DISABLED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-
-        case ID_ENCODING_ANSI:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_ACP ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-
-        case ID_ENCODING_UTF8:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF8 ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-
-        case ID_ENCODING_UTF16_BE:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF16_BE ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-
-        case ID_ENCODING_UTF16_LE:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_cp == CP_UTF16_LE ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-
-        case ID_LINEENDINGS_WINDOWS:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Windows ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-        case ID_LINEENDINGS_UNIX:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Unix ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-        case ID_LINEENDINGS_MACINTOSH:
-            SetFlag(mii.fState, MFS_CHECKED | MFS_UNCHECKED, m_LineEndings == LineEndings::Macintosh ? MFS_CHECKED : MFS_UNCHECKED);
-            SetMenuItemInfo(hMenu, i, TRUE, &mii);
-            break;
-        }
+    case ID_FILE_SAVE:
+    case ID_FILE_SAVEAS:            state.enabled = m_modified; break;
+    case ID_ENCODING_ANSI:          state.checked = m_cp == CP_ACP; break;
+    case ID_ENCODING_UTF8:          state.checked = m_cp == CP_UTF8; break;
+    case ID_ENCODING_UTF16_BE:      state.checked = m_cp == CP_UTF16_BE; break;
+    case ID_ENCODING_UTF16_LE:      state.checked = m_cp == CP_UTF16_LE; break;
+    case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
+    case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
+    case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
     }
 }
 
-class RootWindow : public MDIFrame
+class RootWindow : public MDIFrame, protected CommandState
 {
     friend WindowManager<RootWindow>;
     using Class = MainMDIFrameClass;
@@ -491,10 +460,26 @@ protected:
             HANDLE_MSG(WM_DESTROY, OnDestroy);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_COMMAND, OnCommand);
-            HANDLE_MSG(WM_INITMENUPOPUP, OnInitMenuPopup);
             HANDLE_MSG(WM_ACTIVATE, OnActivate);
         }
 
+        MessageChain* Chains[] = { &m_CommandStateChain, &m_ShowMenuShortcutChain };
+        for (MessageChain* pChain : Chains)
+        {
+            //if (IsHandled())
+                //break;
+
+            bool bHandled = false;
+            ret = pChain->ProcessMessage(*this, uMsg, wParam, lParam, bHandled);
+            if (bHandled)
+                SetHandled(true);
+        }
+        if (uMsg == WM_INITMENUPOPUP)
+        {
+            const HWND hWndActive = GetActiveChild();
+            if (hWndActive)
+                SendMessage(hWndActive, uMsg, wParam, lParam);
+        }
         if (!IsHandled())
             ret = MDIFrame::HandleMessage(uMsg, wParam, lParam);
 
@@ -513,21 +498,27 @@ private:
     void OnDestroy();
     void OnSize(UINT state, int cx, int cy);
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
-    void OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu);
     void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
 
 private:
+    void GetState(UINT id, State& state) const;
+
     HFONT m_hFont = NULL;
     HACCEL m_hAccelTable = NULL;
     HWND m_hStatusBar = NULL;
+
+    CommandStateChain m_CommandStateChain;
+    ShowMenuShortcutChain m_ShowMenuShortcutChain;
 };
 
 BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
+    m_CommandStateChain.Init(this);
+
     m_hAccelTable = CHECK_LE(LoadAccelerators(g_hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1)));
 
     m_hFont = CHECK_LE(CreateFont(
-        16, 0, 0, 0, FW_NORMAL,
+        20, 0, 0, 0, FW_NORMAL,
         FALSE, FALSE, FALSE,
         DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
@@ -535,6 +526,8 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
         TEXT("Consolas")));
 
     m_hStatusBar = CHECK_LE(CreateStatusWindow(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, TEXT("Ready"), *this, 0));
+
+    m_ShowMenuShortcutChain.Init(m_hAccelTable);
 
     return TRUE;
 }
@@ -631,95 +624,19 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     }
 }
 
-std::vector<ACCEL> GetAccelerators(HACCEL hAccelTable)
+void RootWindow::GetState(UINT id, State& state) const
 {
-    std::vector<ACCEL> accels;
-    if (hAccelTable)
+    switch (id)
     {
-        int count = CopyAcceleratorTable(hAccelTable, NULL, 0);
-        if (count > 0)
-        {
-            accels.resize(count);
-            CHECK_LE(CopyAcceleratorTable(hAccelTable, accels.data(), count));
-        }
+    case ID_FILE_NEW:
+    case ID_FILE_OPEN:
+    case ID_FILE_EXIT:
+        break;
+
+    default:
+        state.enabled = GetActiveChild();
+        break;
     }
-    return accels;
-}
-
-LPCTSTR ToString(TCHAR c)
-{
-    thread_local TCHAR str[] = TEXT("_");
-    str[0] = c;
-    return str;
-}
-
-void RootWindow::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu)
-{
-    UINT id0 = GetMenuItemID(hMenu, 0);
-    if (fSystemMenu || GetMenuItemID(hMenu, 0) == SC_RESTORE)
-    {
-        SetHandled(false);
-        return;
-    }
-
-    const HWND hWndActive = GetActiveChild();
-
-    std::vector<ACCEL> accels;
-
-    TCHAR label[100] = {};
-    MENUITEMINFO mii = {};
-    mii.cbSize = sizeof(MENUITEMINFO);
-    mii.fMask = MIIM_STATE | MIIM_ID | MIIM_STRING;
-    mii.dwTypeData = label;
-    const int count = GetMenuItemCount(hMenu);
-    for (int i = 0; i < count; ++i)
-    {
-        bool changed = false;
-        mii.cch = ARRAYSIZE(label);
-        CHECK_LE(GetMenuItemInfo(hMenu, i, TRUE, &mii));
-
-        switch (mii.wID)
-        {
-        case 0xFFFF:    // SubMenu
-            break;
-
-        case ID_FILE_NEW:
-        case ID_FILE_OPEN:
-        case ID_FILE_EXIT:
-            break;
-
-        default:
-            SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, hWndActive ? MFS_ENABLED : MFS_DISABLED);
-            changed = true;
-            break;
-        }
-
-        if (m_hAccelTable && _tcschr(label, TEXT('\t')) == nullptr)
-        {
-            if (accels.empty())
-                accels = GetAccelerators(m_hAccelTable);
-            CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("\t")));
-            auto it = std::find_if(accels.begin(), accels.end(), [&mii](const ACCEL& a) { return a.cmd == mii.wID; });
-            if (it != accels.end())
-            {
-                if (it->fVirt & FCONTROL)
-                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Ctrl+")));
-                if (it->fVirt & FALT)
-                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Alt+")));
-                if (it->fVirt & FSHIFT)
-                    CHECK_HR(StringCchCat(label, ARRAYSIZE(label), TEXT("Shift+")));
-                // TODO Wont wont work for non-ASCII characters
-                CHECK_HR(StringCchCat(label, ARRAYSIZE(label), ToString(it->key)));
-                changed = true;
-            }
-        }
-
-        if (changed)
-            CHECK_LE(SetMenuItemInfo(hMenu, i, TRUE, &mii));
-    }
-
-    if (hWndActive)
-        FORWARD_WM_INITMENUPOPUP(hWndActive, hMenu, item, fSystemMenu, SendMessage);
 }
 
 void RootWindow::OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized)

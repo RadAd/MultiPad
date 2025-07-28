@@ -21,6 +21,11 @@
     <ClCompile Include="Rad\WinError.cpp">
       <Filter>Rad</Filter>
     </ClCompile>
+    <ClCompile Include="FileDialog.cpp" />
+    <ClCompile Include="Rad\RadFile.cpp" />
+    <ClCompile Include="Rad\RadTextFile.cpp" />
+    <ClCompile Include="ShowMenuShortcutChain.cpp" />
+    <ClCompile Include="CommandStateChain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Rad\Convert.h">
@@ -61,6 +66,14 @@
     </ClInclude>
     <ClInclude Include="WinMainSetup.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Rad\ByteOrderMark.h" />
+    <ClInclude Include="Rad\byte_swap.h" />
+    <ClInclude Include="Rad\RadFile.h" />
+    <ClInclude Include="Rad\RadTextFile.h" />
+    <ClInclude Include="Rad\span.h" />
+    <ClInclude Include="Rad\Unicode.h" />
+    <ClInclude Include="ShowMenuShortcutChain.h" />
+    <ClInclude Include="CommandStateChain.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Rad">

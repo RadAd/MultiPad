@@ -70,6 +70,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CommandStateChain.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="MultiPad.cpp" />
     <ClCompile Include="Rad\Dialog.cpp" />
@@ -80,9 +81,11 @@
     <ClCompile Include="Rad\RadTextFile.cpp" />
     <ClCompile Include="Rad\Window.cpp" />
     <ClCompile Include="Rad\WinError.cpp" />
+    <ClCompile Include="ShowMenuShortcutChain.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommandStateChain.h" />
     <ClInclude Include="Rad\ByteOrderMark.h" />
     <ClInclude Include="Rad\byte_swap.h" />
     <ClInclude Include="Rad\Convert.h" />
@@ -102,6 +105,7 @@
     <ClInclude Include="Rad\Windowxx.h" />
     <ClInclude Include="Rad\WinError.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="ShowMenuShortcutChain.h" />
     <ClInclude Include="WinMainSetup.h" />
   </ItemGroup>
   <ItemGroup>
