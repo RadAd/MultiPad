@@ -86,6 +86,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CommandStateChain.h" />
+    <ClInclude Include="EditPlus.h" />
+    <ClInclude Include="GdiPlus.h" />
     <ClInclude Include="Rad\ByteOrderMark.h" />
     <ClInclude Include="Rad\byte_swap.h" />
     <ClInclude Include="Rad\Convert.h" />

@@ -74,6 +74,8 @@
     <ClInclude Include="Rad\Unicode.h" />
     <ClInclude Include="ShowMenuShortcutChain.h" />
     <ClInclude Include="CommandStateChain.h" />
+    <ClInclude Include="EditPlus.h" />
+    <ClInclude Include="GdiPlus.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Rad">

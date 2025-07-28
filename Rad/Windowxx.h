@@ -438,48 +438,48 @@
 #define HANDLEX_WM_SYSCOMMAND(wParam, lParam, fn) \
     ((fn)((UINT)(wParam), GET_POINT_LPARAM(lParam)), 0L)
 
-/* HWND Cls::MDICreate(const LPMDICREATESTRUCT lpmcs) */
+/* HWND Cls::OnMDICreate(const LPMDICREATESTRUCT lpmcs) */
 #define HANDLEX_WM_MDICREATE(wParam, lParam, fn) \
     (LRESULT)(DWORD)(UINT)(fn)((LPMDICREATESTRUCT)(lParam))
 
-/* void Cls::MDIDestroy(HWND hWndDestroy) */
+/* void Cls::OnMDIDestroy(HWND hWndDestroy) */
 #define HANDLEX_WM_MDIDESTROY(wParam, lParam, fn) \
     ((fn)((HWND)(wParam)), 0L)
 
 /* NOTE: Usable only by MDI client windows */
-/* void Cls::MDIActivate(BOOL fActive, HWND hWndActivate, HWND hWndDeactivate) */
+/* void Cls::OnMDIActivate(HWND hWndActivate, HWND hWndDeactivate) */
 #define HANDLEX_WM_MDIACTIVATE(wParam, lParam, fn) \
-    ((fn)((BOOL)(lParam == (LPARAM)hWnd), (HWND)(lParam), (HWND)(wParam)), 0L)
+    ((fn)((HWND)(lParam), (HWND)(wParam)), 0L)
 
-/* void Cls::MDIRestore(HWND hWndRestore) */
+/* void Cls::OnMDIRestore(HWND hWndRestore) */
 #define HANDLEX_WM_MDIRESTORE(wParam, lParam, fn) \
     ((fn)((HWND)(wParam)), 0L)
 
-/* HWND Cls::MDINext(HWND hWndCur, BOOL fPrev) */
+/* HWND Cls::OnMDINext(HWND hWndCur, BOOL fPrev) */
 #define HANDLEX_WM_MDINEXT(wParam, lParam, fn) \
     (LRESULT)(HWND)(fn)((HWND)(wParam), (BOOL)lParam)
 
-/* void Cls::MDIMaximize(HWND hWndMaximize) */
+/* void Cls::OnMDIMaximize(HWND hWndMaximize) */
 #define HANDLEX_WM_MDIMAXIMIZE(wParam, lParam, fn) \
     ((fn)((HWND)(wParam)), 0L)
 
-/* BOOL Cls::MDITile(UINT cmd) */
+/* BOOL Cls::OnMDITile(UINT cmd) */
 #define HANDLEX_WM_MDITILE(wParam, lParam, fn) \
     (LRESULT)(DWORD)(fn)((UINT)(wParam))
 
-/* BOOL Cls::MDICascade(UINT cmd) */
+/* BOOL Cls::OnMDICascade(UINT cmd) */
 #define HANDLEX_WM_MDICASCADE(wParam, lParam, fn) \
     (LRESULT)(DWORD)(fn)((UINT)(wParam))
 
-/* void Cls::MDIIconArrange() */
+/* void Cls::OnMDIIconArrange() */
 #define HANDLEX_WM_MDIICONARRANGE(wParam, lParam, fn) \
     ((fn)(), 0L)
 
-/* HWND Cls::MDIGetActive() */
+/* HWND Cls::OnMDIGetActive() */
 #define HANDLEX_WM_MDIGETACTIVE(wParam, lParam, fn) \
     (LRESULT)(UINT_PTR)(fn)()
 
-/* HMENU Cls::MDISetMenu(BOOL fRefresh, HMENU hmenuFrame, HMENU hmenuWindow) */
+/* HMENU Cls::OnMDISetMenu(BOOL fRefresh, HMENU hmenuFrame, HMENU hmenuWindow) */
 #define HANDLEX_WM_MDISETMENU(wParam, lParam, fn) \
     (LRESULT)(UINT_PTR)(fn)((BOOL)(wParam), (HMENU)(wParam), (HMENU)(lParam))
 

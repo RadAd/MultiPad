@@ -4,8 +4,8 @@
 #include "Rad/WinError.h"
 #include "Rad/MemoryPlus.h"
 #include "Rad/RadTextFile.h"
+#include "Rad/Format.h"
 #include <CommCtrl.h>
-#include <CommDlg.h>
 #include <shlwapi.h>
 #include <tchar.h>
 #include <strsafe.h>
@@ -14,6 +14,7 @@
 
 #include "CommandStateChain.h"
 #include "ShowMenuShortcutChain.h"
+#include "EditPlus.h"
 
 // TODO
 // Application icon
@@ -57,6 +58,11 @@ extern HWND g_hWndAccel;
 const TCHAR* g_ProjectName = TEXT("MultiPad");
 const TCHAR* g_ProjectTitle = TEXT("MultiPad");
 
+inline void StatusBar_SetText(HWND hWndStatusBar, int part, stdt::string_view text)
+{
+    SendMessage(hWndStatusBar, SB_SETTEXT, MAKEWORD(part, 0), (LPARAM) text.data());
+}
+
 inline stdt::string_view right(stdt::string_view sv, size_t len)
 {
     if (sv.size() <= len)
@@ -74,31 +80,6 @@ inline void replaceAll(stdt::string& str, stdt::string_view from, stdt::string_v
     }
 }
 
-inline LONG Width(const RECT r)
-{
-    return r.right - r.left;
-}
-
-inline LONG Height(const RECT r)
-{
-    return r.bottom - r.top;
-}
-
-inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
-{
-    HWND hWnd = CreateWindow(
-        WC_EDIT,
-        TEXT(""),
-        dwStyle,
-        rc.left, rc.top, Width(rc), Height(rc),
-        hParent,
-        (HMENU) (INT_PTR) id,
-        NULL,
-        NULL);
-    CHECK_LE(hWnd != NULL);
-    return hWnd;
-}
-
 #define ID_EDIT 213
 
 class TextDocWindow : public MDIChild, protected CommandState
@@ -109,6 +90,7 @@ public:
     struct Init
     {
         HFONT hFont;
+        HWND hStatusBar;
         LPCTSTR pFileName;
         DWORD cp;
         BOOL Maximized;
@@ -136,6 +118,7 @@ protected:
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_SETFOCUS, OnSetFocus);
+            HANDLE_MSG(WM_MDIACTIVATE, OnMDIActivate);
         }
 
         MessageChain* Chains[] = { &m_CommandStateChain };
@@ -161,6 +144,7 @@ private:
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnSize(UINT state, int cx, int cy);
     void OnSetFocus(HWND hwndOldFocus);
+    void OnMDIActivate(HWND hWndActivate, HWND hWndDeactivate);
 
 private:
     void SetTitle()
@@ -238,7 +222,18 @@ private:
 
     void GetState(UINT id, State& state) const;
 
+    void SetStatusBarText()
+    {
+        const EditData* ped = EditGetData(m_hWndChild);
+        _ASSERT(ped->nCursor == ped->nSelStart || ped->nCursor == ped->nSelEnd);
+        const POINT editpos = EditGetPos(m_hWndChild, ped->nCursor);
+        StatusBar_SetText(m_hStatusBar, 1, ped->nSelEnd == ped->nSelStart
+            ? Format(TEXT("Ln %d, Col %d"), editpos.y, editpos.x)
+            : Format(TEXT("Ln %d, Col %d, Sel %d"), editpos.y, editpos.x, ped->nSelEnd - ped->nSelStart));
+    }
+
     HFONT m_hFont = NULL;
+    HWND m_hStatusBar = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
     bool m_modified = false;
@@ -254,13 +249,16 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 {
     const Init& init = *((Init*) (INT_PTR) lpCreateStruct->lpCreateParams);
     m_hFont = init.hFont;
+    m_hStatusBar = init.hStatusBar;
     m_FileName = init.pFileName ? init.pFileName : TEXT("");
     m_cp = init.cp;
 
     m_CommandStateChain.Init(this);
 
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
+    SetWindowSubclass(m_hWndChild, EditExProc, 0, 0);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
+    Edit_LimitText(m_hWndChild, 0);
 
     if (!m_FileName.empty())
     {
@@ -395,6 +393,9 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         case EN_CHANGE:
             SetModified();
             break;
+        case EN_SEL_CHANGED:
+            SetStatusBarText();
+            break;
         case EN_ERRSPACE:
             MessageBox(*this, TEXT("Not enough memory to complete the operation."), g_ProjectTitle, MB_ICONERROR | MB_OK);
             break;
@@ -420,6 +421,14 @@ void TextDocWindow::OnSetFocus(const HWND hwndOldFocus)
 {
     if (m_hWndChild)
         SetFocus(m_hWndChild);
+}
+
+void TextDocWindow::OnMDIActivate(HWND hWndActivate, HWND hWndDeactivate)
+{
+    if (hWndActivate == *this)
+        SetStatusBarText();
+    else if (hWndActivate == NULL)
+        StatusBar_SetText(m_hStatusBar, 1, TEXT(""));
 }
 
 void TextDocWindow::GetState(UINT id, State& state) const
@@ -545,6 +554,19 @@ void RootWindow::OnSize(UINT state, int cx, int cy)
 {
     if (m_hStatusBar)
     {
+        const int partsizes[] = { 200 };
+        {
+            std::vector<int> parts(ARRAYSIZE(partsizes) + 1);
+            parts[ARRAYSIZE(partsizes)] = -1; // Right edge
+            int r = cx;
+            for (int i = ARRAYSIZE(partsizes) - 1; i >= 0; --i)
+            {
+                r -= partsizes[i];
+                parts[i] = r;
+            }
+            SendMessage(m_hStatusBar, SB_SETPARTS, parts.size(), (LPARAM) parts.data());
+        }
+
         FORWARD_WM_SIZE(m_hStatusBar, state, cx, cy, SendMessage);
         RECT rcStatusBar;
         CHECK_LE(GetWindowRect(m_hStatusBar, &rcStatusBar));
@@ -569,7 +591,7 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         BOOL bMaximized = FALSE;
         if (GetActiveChild(&bMaximized) == NULL)
             bMaximized = TRUE;
-        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, nullptr, CP_ACP, bMaximized }));
+        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, nullptr, CP_ACP, bMaximized }));
         break;
     }
     case ID_FILE_OPEN:
@@ -582,7 +604,7 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             BOOL bMaximized = FALSE;
             if (GetActiveChild(&bMaximized) == NULL)
                 bMaximized = TRUE;
-            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, filename.c_str(), cp, bMaximized});
+            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, filename.c_str(), cp, bMaximized});
         }
 #else
         OPENFILENAME ofn = {};

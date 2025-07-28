@@ -43,7 +43,7 @@ void CommandStateChain::OnInitMenuPopup(HMENU hMenu, UINT item, BOOL fSystemMenu
         if (mii.wID == 0xFFFF)    // SubMenu
             continue;
 
-        CommandState::State state = { !(mii.fState & MFS_DISABLED), mii.fState & MFS_CHECKED };
+        CommandState::State state = { !(mii.fState & MFS_DISABLED), bool(mii.fState & MFS_CHECKED) };
         m_pState->GetState(mii.wID, state);
         if (SetFlag(mii.fState, MFS_ENABLED | MFS_DISABLED, state.enabled ? MFS_ENABLED : MFS_DISABLED))
             SetMenuItemInfo(hMenu, i, TRUE, &mii);
