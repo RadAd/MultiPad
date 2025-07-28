@@ -71,6 +71,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CommandStateChain.cpp" />
+    <ClCompile Include="EditPlus.cpp" />
     <ClCompile Include="FileDialog.cpp" />
     <ClCompile Include="MultiPad.cpp" />
     <ClCompile Include="Rad\Dialog.cpp" />

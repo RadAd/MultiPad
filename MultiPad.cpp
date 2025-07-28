@@ -5,7 +5,7 @@
 #include "Rad/MemoryPlus.h"
 #include "Rad/RadTextFile.h"
 #include "Rad/Format.h"
-#include <CommCtrl.h>
+#include <CommDlg.h>
 #include <shlwapi.h>
 #include <tchar.h>
 #include <strsafe.h>
@@ -225,7 +225,7 @@ private:
     void SetStatusBarText()
     {
         DWORD nCaretPos, nSelStart, nSelEnd;
-        nCaretPos = EditGetCaret(m_hWndChild);
+        EditEx_GetCaret(m_hWndChild, &nCaretPos);
         Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
         _ASSERT(nCaretPos == nSelStart || nCaretPos == nSelEnd);
         const POINT editpos = EditGetPos(m_hWndChild, nCaretPos);
@@ -258,7 +258,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_CommandStateChain.Init(this);
 
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
-    SetWindowSubclass(m_hWndChild, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({})));
+    InitEditEx(m_hWndChild);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
     Edit_LimitText(m_hWndChild, 0);
 
@@ -391,8 +391,8 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         break;
     case ID_VIEW_WHITESPACE:
     {
-        const BOOL bViewWhitespace = (BOOL) SendMessage(m_hWndChild, EM_EX_GETVIEWWHITESPACE, 0, 0);
-        SendMessage(m_hWndChild, EM_EX_SETVIEWWHITESPACE, !bViewWhitespace, 0);
+        const BOOL bViewWhitespace = EditEx_GetViewWhiteSpace(m_hWndChild);
+        EditEx_SetViewWhiteSpace(m_hWndChild, !bViewWhitespace);
         break;
     }
     case ID_EDIT:
@@ -451,7 +451,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
     case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
-    case ID_VIEW_WHITESPACE:        state.checked = (BOOL) SendMessage(m_hWndChild, EM_EX_GETVIEWWHITESPACE, 0, 0); break;
+    case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetViewWhiteSpace(m_hWndChild); break;
     }
 }
 

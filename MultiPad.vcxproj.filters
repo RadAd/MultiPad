@@ -26,6 +26,7 @@
     <ClCompile Include="Rad\RadTextFile.cpp" />
     <ClCompile Include="ShowMenuShortcutChain.cpp" />
     <ClCompile Include="CommandStateChain.cpp" />
+    <ClCompile Include="EditPlus.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Rad\Convert.h">
