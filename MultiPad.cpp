@@ -150,9 +150,12 @@ private:
     void SetTitle()
     {
         stdt::string title = m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str());
-        if (m_modified)
+        if (Edit_GetModify(m_hWndChild))
             title += TEXT('*');
-        SetWindowText(*this, title.c_str());
+        TCHAR currentTitle[MAX_PATH] = {};
+        GetWindowText(*this, currentTitle, ARRAYSIZE(currentTitle));
+        if (title != currentTitle)
+            SetWindowText(*this, title.c_str());
     }
 
     bool SelectFileName()
@@ -207,15 +210,15 @@ private:
         if (!CHECK_LE(otf.Valid())) return; // TODO This should be a user friendly message
         otf.Write(text, cp);
 
-        m_modified = false;
+        Edit_SetModify(m_hWndChild, false);
         SetTitle();
     }
 
     void SetModified()
     {
-        if (!m_modified)
+        if (!Edit_GetModify(m_hWndChild))
         {
-            m_modified = true;
+            Edit_SetModify(m_hWndChild, true);
             SetTitle();
         }
     }
@@ -238,7 +241,6 @@ private:
     HWND m_hStatusBar = NULL;
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
-    bool m_modified = false;
 
     enum class LineEndings { Windows, Unix, Macintosh };
     UINT m_cp = CP_ACP;
@@ -335,7 +337,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
         if (!fullfile.empty())
             Edit_SetText(m_hWndChild, fullfile.c_str());
     }
-    m_modified = false;
+    Edit_SetModify(m_hWndChild, false);
     SetTitle();
 
     return TRUE;
@@ -399,7 +401,8 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         switch (codeNotify)
         {
         case EN_CHANGE:
-            SetModified();
+            //SetModified();
+            SetTitle();
             break;
         case EN_SEL_CHANGED:
             SetStatusBarText();
@@ -443,7 +446,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
 {
     switch (id)
     {
-    case ID_FILE_SAVE:              state.enabled = m_modified; break;
+    case ID_FILE_SAVE:              state.enabled = Edit_GetModify(m_hWndChild); break;
     case ID_ENCODING_ANSI:          state.checked = m_cp == CP_ACP; break;
     case ID_ENCODING_UTF8:          state.checked = m_cp == CP_UTF8; break;
     case ID_ENCODING_UTF16_BE:      state.checked = m_cp == CP_UTF16_BE; break;
