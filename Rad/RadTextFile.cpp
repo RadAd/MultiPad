@@ -91,7 +91,7 @@ template <class T>
 bool RadITextFile::ReadLineInternal(T& line, bool swap)
 {
     auto it = findEndOfLine(m_buffer, IsWide16(m_cp));
-    if (it != m_buffer.end())
+    if (it != m_buffer.end() && it != std::prev(m_buffer.end()))
         return extract(line, it + (IsLittleEndian(m_cp) ? 2 : 1), swap), true;
 
     while (true)
@@ -101,7 +101,7 @@ bool RadITextFile::ReadLineInternal(T& line, bool swap)
             return line.clear(), false;
 
         it = findEndOfLine(m_buffer, IsLittleEndian(m_cp));
-        if (it != m_buffer.end())
+        if (it != m_buffer.end() && it != std::prev(m_buffer.end()))
             return extract(line, it + (IsLittleEndian(m_cp) ? 2 : 1), swap), true;
 
         if (!more)
