@@ -193,6 +193,15 @@ private:
         text.resize(GetWindowTextLength(m_hWndChild));
         GetWindowText(m_hWndChild, text.data(), static_cast<int>(text.size() + 1));
 
+        // https://en.wikipedia.org/wiki/Unicode_control_characters
+        for (TCHAR& c : text)
+        {
+            if (c == 0x2421)
+                c = 0x7F;
+            if (c >= 0x2410 && c < 0x2420)
+                c -= 0x2410;
+        }
+
         switch (m_LineEndings)
         {
         case LineEndings::Unix:         replaceAll(text, TEXT("\r\n"), TEXT("\n")); break;
@@ -269,6 +278,30 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                 {
                     ++macosle;
                     line.insert(line.size(), 1, TEXT('\n'));
+                }
+                for (TCHAR& c : line)
+                {
+                    switch (c)
+                    {
+                    case TEXT('\r'):
+                    case TEXT('\n'):
+                        break;
+
+                    case TEXT(' '):
+                        //c = 0x2423;
+                        break;
+                    case TEXT('\t'):
+                        break;
+
+                    case 0x7F:  // DEL
+                        c = 0x2421;
+                        break;
+
+                    default:
+                        if (_istcntrl(c))
+                            c += 0x2410;
+                        break;
+                    }
                 }
                 fullfile += line;
             }
