@@ -558,13 +558,6 @@ protected:
     }
 
 private:
-    HWND GetActiveChild(BOOL* b = nullptr) const
-    {
-        HWND hWndChild = (HWND) SendMessage(GetMDIClient(), WM_MDIGETACTIVE, 0, (INT_PTR) b);
-        return hWndChild;
-    }
-
-private:
     BOOL OnCreate(LPCREATESTRUCT lpCreateStruct);
     void OnClose();
     void OnDestroy();
@@ -574,6 +567,45 @@ private:
     void OnDropFiles(HDROP hdrop);
 
 private:
+    HWND GetActiveChild(BOOL* b = nullptr) const
+    {
+        HWND hWndChild = (HWND) SendMessage(GetMDIClient(), WM_MDIGETACTIVE, 0, (INT_PTR) b);
+        return hWndChild;
+    }
+
+    bool SaveAll(const std::vector<TextDocWindow*>& children)
+    {
+        bool bSuccess = true;
+        for (TextDocWindow* pDoc : children)
+        {
+            if (!pDoc->GetFileName().empty() || pDoc->SelectFileName())
+            {
+                if (!pDoc->Save())
+                    bSuccess = false;
+            }
+            else
+                bSuccess = false;
+        }
+        if (!bSuccess)
+            MessageBox(*this, TEXT("Failed to save some documents."), g_ProjectTitle, MB_ICONERROR | MB_OK);
+        return bSuccess;
+    }
+
+    std::vector<TextDocWindow*> GetModifiedChildren() const
+    {
+        std::vector<TextDocWindow*> children;
+        EnumChildWindows(GetMDIClient(), [](HWND hWnd, LPARAM lParam) -> BOOL
+            {
+                std::vector<TextDocWindow*>& children = *(std::vector<TextDocWindow*>*) lParam;
+                MessageHandler* pmh = MessageHandler::GetFrom(hWnd);
+                TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(pmh);
+                if (pDoc && pDoc->IsModified())
+                    children.push_back(pDoc);
+                return TRUE; // Continue enumeration
+            }, (LPARAM) &children);
+        return children;
+    }
+
     void GetState(UINT id, State& state) const;
 
     HFONT m_hFont = NULL;
@@ -607,16 +639,7 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 
 void RootWindow::OnClose()
 {
-    std::vector<TextDocWindow*> children;
-    EnumChildWindows(GetMDIClient(), [](HWND hWnd, LPARAM lParam) -> BOOL
-        {
-            std::vector<TextDocWindow*>& children = *(std::vector<TextDocWindow*>*) lParam;
-            MessageHandler* pmh = MessageHandler::GetFrom(hWnd);
-            TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(pmh);
-            if (pDoc && pDoc->IsModified())
-                children.push_back(pDoc);
-            return TRUE; // Continue enumeration
-        }, (LPARAM) &children);
+    const std::vector<TextDocWindow*> children = GetModifiedChildren();
     if (!children.empty())
     {
         stdt::string message = Format(TEXT("The following documents have unsaved changes:\n"));
@@ -628,22 +651,8 @@ void RootWindow::OnClose()
             return;
         else if (ret == IDYES)
         {
-            bool bSuccess = true;
-            for (TextDocWindow* pDoc : children)
-            {
-                if (!pDoc->GetFileName().empty() || pDoc->SelectFileName())
-                {
-                    if (!pDoc->Save())
-                        bSuccess = false;
-                }
-                else
-                    bSuccess = false;
-            }
-            if (!bSuccess)
-            {
-                MessageBox(*this, TEXT("Failed to save some documents."), g_ProjectTitle, MB_ICONERROR | MB_OK);
+            if (!SaveAll(children))
                 return;
-            }
         }
     }
     SetHandled(false);
@@ -716,6 +725,13 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
 #endif
         break;
     }
+    case ID_FILE_SAVEALL:
+    {
+        const std::vector<TextDocWindow*> children = GetModifiedChildren();
+        if (!children.empty())
+            SaveAll(children);
+        break;
+    }
     case ID_FILE_EXIT:
         SendMessage(*this, WM_CLOSE, 0, 0);
         break;
@@ -746,6 +762,10 @@ void RootWindow::GetState(UINT id, State& state) const
     case ID_FILE_NEW:
     case ID_FILE_OPEN:
     case ID_FILE_EXIT:
+        break;
+
+    case ID_FILE_SAVEALL:
+        state.enabled = !GetModifiedChildren().empty();
         break;
 
     default:
