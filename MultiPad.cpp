@@ -24,25 +24,22 @@
 // Application icon
 // Document icon
 // Toolbar
-// Status bar cursor pos/selection
-// Warn when closing an unsaved file
 // Monitor for file updates
 // Multi undo
 // Word boundaries
 // Save position in registry
 // Choose font
 // Word wrap
-// Drop file support
 // Open from url
 // Recent file list
 // goto line
 // tab mode
 // split view
-// open from command line
+// tab controls
 
 // TODO - Not sure this can be done with the edit control
-// Show whitespace
-// Show unprintable characters
+// line numbers
+// bookmarks
 
 namespace stdt
 {
@@ -102,6 +99,25 @@ public:
     static ATOM Register() { return ::Register<Class>(); }
     static TextDocWindow* Create(HWND hWndParent, const Init& init) { return WindowManager<TextDocWindow>::Create(hWndParent, TEXT("New Document"), (LPVOID) (INT_PTR) &init); }
 
+    bool IsModified() const
+    {
+        return Edit_GetModify(m_hWndChild);
+    }
+    const stdt::string& GetFileName() const
+    {
+        return m_FileName;
+    }
+    stdt::string GetTitle() const
+    {
+        if (m_FileName.empty())
+            return TEXT("Untitled");
+        else
+        {
+            LPCTSTR pName = PathFindFileName(m_FileName.c_str());
+            return stdt::string(pName).append(TEXT(" @ ")).append(stdt::string_view(m_FileName.c_str(), pName - m_FileName.c_str() - 1));
+        }
+    }
+
 protected:
     virtual HWND CreateWnd(const CREATESTRUCT& ocs)
     {
@@ -118,7 +134,7 @@ protected:
         switch (uMsg)
         {
             HANDLE_MSG(WM_CREATE, OnCreate);
-            HANDLE_MSG(WM_DESTROY, OnDestroy);
+            HANDLE_MSG(WM_CLOSE, OnClose);
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_SETFOCUS, OnSetFocus);
@@ -144,7 +160,7 @@ protected:
 
 private:
     BOOL OnCreate(LPCREATESTRUCT lpCreateStruct);
-    void OnDestroy();
+    void OnClose();
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnSize(UINT state, int cx, int cy);
     void OnSetFocus(HWND hwndOldFocus);
@@ -153,7 +169,7 @@ private:
 private:
     void SetTitle()
     {
-        stdt::string title = m_FileName.empty() ? TEXT("Untitled") : PathFindFileName(m_FileName.c_str());
+        stdt::string title = GetTitle();
         if (Edit_GetModify(m_hWndChild))
             title += TEXT('*');
         TCHAR currentTitle[MAX_PATH] = {};
@@ -162,6 +178,7 @@ private:
             SetWindowText(*this, title.c_str());
     }
 
+public:
     bool SelectFileName()
     {
         OPENFILENAME ofn = {};
@@ -182,7 +199,7 @@ private:
             return false;
     }
 
-    void Save()
+    bool Save()
     {
         _ASSERT(!m_FileName.empty());
         // TODO Use text control handle
@@ -211,13 +228,15 @@ private:
         const UINT cp = CP_ACP;
 #endif
         RadOTextFile otf(m_FileName.c_str(), m_cp, true);
-        if (!CHECK_LE(otf.Valid())) return; // TODO This should be a user friendly message
+        CHECK_LE_RET(otf.Valid(), false); // TODO This should be a user friendly message
         otf.Write(text, cp);
 
         Edit_SetModify(m_hWndChild, false);
         SetTitle();
+        return true;
     }
 
+private:
     void SetModified()
     {
         if (!Edit_GetModify(m_hWndChild))
@@ -347,8 +366,22 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     return TRUE;
 }
 
-void TextDocWindow::OnDestroy()
+void TextDocWindow::OnClose()
 {
+    if (Edit_GetModify(m_hWndChild))
+    {
+        const int ret = MessageBox(*this, TEXT("Do you want to save changes?"), g_ProjectTitle, MB_ICONQUESTION | MB_YESNOCANCEL);
+        if (ret == IDCANCEL)
+        {
+            return;
+        }
+        else if (ret == IDYES)
+        {
+            if (!Save())
+                return;
+        }
+    }
+    SetHandled(false);
 }
 
 void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
@@ -493,6 +526,7 @@ protected:
         switch (uMsg)
         {
             HANDLE_MSG(WM_CREATE, OnCreate);
+            HANDLE_MSG(WM_CLOSE, OnClose);
             HANDLE_MSG(WM_DESTROY, OnDestroy);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_COMMAND, OnCommand);
@@ -532,6 +566,7 @@ private:
 
 private:
     BOOL OnCreate(LPCREATESTRUCT lpCreateStruct);
+    void OnClose();
     void OnDestroy();
     void OnSize(UINT state, int cx, int cy);
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
@@ -568,6 +603,50 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_ShowMenuShortcutChain.Init(m_hAccelTable);
 
     return TRUE;
+}
+
+void RootWindow::OnClose()
+{
+    std::vector<TextDocWindow*> children;
+    EnumChildWindows(GetMDIClient(), [](HWND hWnd, LPARAM lParam) -> BOOL
+        {
+            std::vector<TextDocWindow*>& children = *(std::vector<TextDocWindow*>*) lParam;
+            MessageHandler* pmh = MessageHandler::GetFrom(hWnd);
+            TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(pmh);
+            if (pDoc && pDoc->IsModified())
+                children.push_back(pDoc);
+            return TRUE; // Continue enumeration
+        }, (LPARAM) &children);
+    if (!children.empty())
+    {
+        stdt::string message = Format(TEXT("The following documents have unsaved changes:\n"));
+        for (TextDocWindow* pDoc : children)
+            message += Format(TEXT("  %s\n"), pDoc->GetTitle().c_str());
+        message += TEXT("Do you want to close them anyway?");
+        const int ret = MessageBox(*this, message.c_str(), g_ProjectTitle, MB_ICONQUESTION | MB_YESNOCANCEL);
+        if (ret == IDCANCEL)
+            return;
+        else if (ret == IDYES)
+        {
+            bool bSuccess = true;
+            for (TextDocWindow* pDoc : children)
+            {
+                if (!pDoc->GetFileName().empty() || pDoc->SelectFileName())
+                {
+                    if (!pDoc->Save())
+                        bSuccess = false;
+                }
+                else
+                    bSuccess = false;
+            }
+            if (!bSuccess)
+            {
+                MessageBox(*this, TEXT("Failed to save some documents."), g_ProjectTitle, MB_ICONERROR | MB_OK);
+                return;
+            }
+        }
+    }
+    SetHandled(false);
 }
 
 void RootWindow::OnDestroy()

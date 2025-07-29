@@ -29,6 +29,7 @@ protected:
     }
 
 protected:
+    static MessageHandler* GetFrom(HWND hWnd);
     static LRESULT CALLBACK s_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled);
 
 private:

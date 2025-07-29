@@ -37,9 +37,14 @@ LRESULT MessageHandler::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
     return ret;
 }
 
+MessageHandler* MessageHandler::GetFrom(HWND hWnd)
+{
+    return reinterpret_cast<MessageHandler*>(GetWindowLongPtr(hWnd, IsDialog(hWnd) ? DWLP_USER : GWLP_USERDATA));
+}
+
 LRESULT CALLBACK MessageHandler::s_WndProc(const HWND hWnd, const UINT uMsg, const WPARAM wParam, /*const*/ LPARAM lParam, bool& bHandled)
 {
-    MessageHandler* self = reinterpret_cast<MessageHandler*>(GetWindowLongPtr(hWnd, IsDialog(hWnd) ? DWLP_USER : GWLP_USERDATA));
+    MessageHandler* self = GetFrom(hWnd);
     if (!self)
         return 0;
 
