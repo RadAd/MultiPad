@@ -1,14 +1,18 @@
 #include "Rad/MDI.h"
+
+#include <CommDlg.h>
+#include <shlwapi.h>
+#include <shellapi.h>
+#include <tchar.h>
+#include <strsafe.h>
+
 #include "Rad/Dialog.h"
 #include "Rad/Windowxx.h"
 #include "Rad/WinError.h"
 #include "Rad/MemoryPlus.h"
 #include "Rad/RadTextFile.h"
 #include "Rad/Format.h"
-#include <CommDlg.h>
-#include <shlwapi.h>
-#include <tchar.h>
-#include <strsafe.h>
+
 #include <vector>
 #include "resource.h"
 
@@ -479,6 +483,7 @@ protected:
     {
         CREATESTRUCT cs = ocs;
         cs.hMenu = LoadMenu(cs.hInstance, MAKEINTRESOURCE(IDR_MENU1));
+        cs.dwExStyle |= WS_EX_ACCEPTFILES;
         return MDIFrame::CreateWnd(cs);
     }
 
@@ -492,6 +497,7 @@ protected:
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_ACTIVATE, OnActivate);
+            HANDLE_MSG(WM_DROPFILES, OnDropFiles);
         }
 
         MessageChain* Chains[] = { &m_CommandStateChain, &m_ShowMenuShortcutChain };
@@ -530,6 +536,7 @@ private:
     void OnSize(UINT state, int cx, int cy);
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
+    void OnDropFiles(HDROP hdrop);
 
 private:
     void GetState(UINT id, State& state) const;
@@ -679,6 +686,17 @@ void RootWindow::OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized)
     {
         g_hAccelTable = NULL;
         g_hWndAccel = NULL;
+    }
+}
+
+void RootWindow::OnDropFiles(HDROP hdrop)
+{
+    const UINT count = DragQueryFile(hdrop, 0xFFFFFFFF, NULL, 0);
+    for (UINT i = 0; i < count; ++i)
+    {
+        TCHAR filename[MAX_PATH] = {};
+        if (DragQueryFile(hdrop, i, filename, ARRAYSIZE(filename)))
+            OpenFile(filename);
     }
 }
 
