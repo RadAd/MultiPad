@@ -466,6 +466,14 @@ public:
     static ATOM Register() { return ::Register<Class>(); }
     static RootWindow* Create() { return WindowManager<RootWindow>::Create(NULL, g_ProjectTitle); }
 
+    void OpenFile(LPCTSTR filename, DWORD cp = CP_ACP)
+    {
+        BOOL bMaximized = FALSE;
+        if (GetActiveChild(&bMaximized) == NULL)
+            bMaximized = TRUE;
+        /*TextDocWindow* pWnd =*/ CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, filename, cp, bMaximized }));
+    }
+
 protected:
     virtual HWND CreateWnd(const CREATESTRUCT& ocs)
     {
@@ -598,25 +606,15 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     switch (id)
     {
     case ID_FILE_NEW:
-    {
-        BOOL bMaximized = FALSE;
-        if (GetActiveChild(&bMaximized) == NULL)
-            bMaximized = TRUE;
-        CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, nullptr, CP_ACP, bMaximized }));
+        OpenFile(nullptr);
         break;
-    }
     case ID_FILE_OPEN:
     {
 #if 1
         stdt::string filename;
         DWORD cp = CP_ACP;
         if (FileOpenDialog(*this, filename, cp))
-        {
-            BOOL bMaximized = FALSE;
-            if (GetActiveChild(&bMaximized) == NULL)
-                bMaximized = TRUE;
-            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, filename.c_str(), cp, bMaximized});
-        }
+            OpenFile(filename.c_str(), cp);
 #else
         OPENFILENAME ofn = {};
         TCHAR szFileName[MAX_PATH] = {};
@@ -628,12 +626,7 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         ofn.lpstrTitle = TEXT("Open Text File");
         ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
         if (GetOpenFileName(&ofn))
-        {
-            BOOL bMaximized = FALSE;
-            if (GetActiveChild(&bMaximized) == NULL)
-                bMaximized = TRUE;
-            /*TextDocWindow* pWnd =*/ TextDocWindow::Create(GetMDIClient(), { m_hFont, szFileName, CP_ACP, bMaximized });
-        }
+            OpenFile(szFileName);
 #endif
         break;
     }
@@ -701,6 +694,13 @@ bool Run(_In_ const LPCTSTR lpCmdLine, _In_ const int nShowCmd)
 
     RadLogInitWnd(*prw, nullptr, nullptr);
     ShowWindow(*prw, nShowCmd);
+
+    for (int arg = 1; arg < __argc; ++arg)
+    {
+        const stdt::string_view filename = __targv[arg];
+        if (!filename.empty())
+            prw->OpenFile(filename.data());
+    }
 
     return true;
 }
