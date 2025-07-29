@@ -51,15 +51,20 @@ namespace
 
     inline void ModifyWhiteSpace(LPTSTR lpText, const SIZE_T size, bool add)
     {
+        //const TCHAR vspace = 0x2423;  // White space indicator
+        const TCHAR vspace = 0x00B7; // Middle dot
+        //const TCHAR vtab = 0x21E5; // Rightwards arrow to bar
+        //const TCHAR vtab = 0x27FC; // Rightwards arrow to bar with horizontal stroke
+        const TCHAR vtab = 0x27F6; // Rightwards arrow to bar with vertical stroke
         if (add)
         {
             for (int i = 0; i < size; ++i)
             {
                 TCHAR& c = lpText[i];
                 if (c == TEXT(' '))
-                    c = 0x2423;
+                    c = vspace;
                 else if (c == TEXT('\t'))
-                    c = 0x2409;
+                    c = vtab;
             }
         }
         else
@@ -67,9 +72,9 @@ namespace
             for (int i = 0; i < size; ++i)
             {
                 TCHAR& c = lpText[i];
-                if (c == 0x2423)
+                if (c == vspace)
                     c = TEXT(' ');
-                else if (c == 0x2409)
+                else if (c == vtab)
                     c = TEXT('\t');
             }
         }
