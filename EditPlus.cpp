@@ -132,6 +132,21 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         break;
+    case WM_KEYDOWN:
+        if (wParam == VK_UP && (GetKeyState(VK_CONTROL) & 0x8000))
+            Edit_ScrollEx(hWnd, SB_LINEUP);
+        else if (wParam == VK_DOWN && (GetKeyState(VK_CONTROL) & 0x8000))
+            Edit_ScrollEx(hWnd, SB_LINEDOWN);
+        else if (wParam == VK_PRIOR && (GetKeyState(VK_CONTROL) & 0x8000))
+            Edit_ScrollEx(hWnd, SB_PAGEUP);
+        else if (wParam == VK_NEXT && (GetKeyState(VK_CONTROL) & 0x8000))
+            Edit_ScrollEx(hWnd, SB_PAGEDOWN);
+        else
+        {
+            ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+            NotifyParent(hWnd, EN_SEL_CHANGED);
+        }
+        break;
     case WM_COPY:
     {
         DWORD nSelStart, nSelEnd;
@@ -222,9 +237,9 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
     case EM_SETSEL:
     case EM_UNDO:
-        //case EM_REPLACESEL:
-        //case WM_PASTE:
-    case WM_KEYDOWN:
+    //case EM_REPLACESEL:
+    //case WM_PASTE:
+    //case WM_KEYDOWN:
     case WM_LBUTTONDOWN:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         NotifyParent(hWnd, EN_SEL_CHANGED);
