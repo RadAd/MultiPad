@@ -26,19 +26,22 @@
 // Toolbar
 // Monitor for file updates
 // Multi undo
-// Word boundaries
+// Word boundaries  Edit_SetWordBreakProc
 // Save position in registry
 // Choose font
-// Word wrap
+// Word wrap - need to recreate the edit control and copy over all state
 // Open from url
 // Recent file list
 // goto line
 // tab mode
 // split view
 // tab controls
+// readonly mode
+// Edit_GetEndOfLine/Edit_SetEndOfLine
+// Edit_SetExtendedStyle
 
 // TODO - Not sure this can be done with the edit control
-// line numbers
+// line numbers - see https://github.com/katahiromz/LineNumEdit
 // bookmarks
 
 namespace stdt
