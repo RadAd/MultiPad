@@ -85,6 +85,7 @@ inline void replaceAll(stdt::string& str, stdt::string_view from, stdt::string_v
 }
 
 #define ID_EDIT 213
+#define ID_TABCTRL 312
 
 class TextDocWindow : public MDIChild, protected CommandState
 {
@@ -109,6 +110,13 @@ public:
     const stdt::string& GetFileName() const
     {
         return m_FileName;
+    }
+    stdt::string GetShortTitle() const
+    {
+        if (m_FileName.empty())
+            return TEXT("Untitled");
+        else
+            return PathFindFileName(m_FileName.c_str());
     }
     stdt::string GetTitle() const
     {
@@ -138,6 +146,7 @@ protected:
         {
             HANDLE_MSG(WM_CREATE, OnCreate);
             HANDLE_MSG(WM_CLOSE, OnClose);
+            HANDLE_MSG(WM_DESTROY, OnDestroy);
             HANDLE_MSG(WM_COMMAND, OnCommand);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_SETFOCUS, OnSetFocus);
@@ -164,6 +173,7 @@ protected:
 private:
     BOOL OnCreate(LPCREATESTRUCT lpCreateStruct);
     void OnClose();
+    void OnDestroy();
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
     void OnSize(UINT state, int cx, int cy);
     void OnSetFocus(HWND hwndOldFocus);
@@ -366,6 +376,8 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     Edit_SetModify(m_hWndChild, false);
     SetTitle();
 
+    SendMessage(GetParent(GetParent(*this)), WM_PARENTNOTIFY, WM_MDICREATE, (LPARAM) HWND(*this));
+
     return TRUE;
 }
 
@@ -385,6 +397,11 @@ void TextDocWindow::OnClose()
         }
     }
     SetHandled(false);
+}
+
+void TextDocWindow::OnDestroy()
+{
+    SendMessage(GetParent(GetParent(*this)), WM_PARENTNOTIFY, WM_MDIDESTROY, (LPARAM) HWND(*this));
 }
 
 void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
@@ -477,7 +494,10 @@ void TextDocWindow::OnSetFocus(const HWND hwndOldFocus)
 void TextDocWindow::OnMDIActivate(HWND hWndActivate, HWND hWndDeactivate)
 {
     if (hWndActivate == *this)
+    {
         SetStatusBarText();
+        SendMessage(GetParent(GetParent(*this)), WM_PARENTNOTIFY, WM_MDIACTIVATE, (LPARAM) HWND(*this));
+    }
     else if (hWndActivate == NULL)
         StatusBar_SetText(m_hStatusBar, 1, TEXT(""));
 }
@@ -533,8 +553,10 @@ protected:
             HANDLE_MSG(WM_DESTROY, OnDestroy);
             HANDLE_MSG(WM_SIZE, OnSize);
             HANDLE_MSG(WM_COMMAND, OnCommand);
+            HANDLE_MSG(WM_NOTIFY, OnNotify);
             HANDLE_MSG(WM_ACTIVATE, OnActivate);
             HANDLE_MSG(WM_DROPFILES, OnDropFiles);
+            HANDLE_MSG(WM_PARENTNOTIFY, OnParentNotify);
         }
 
         MessageChain* Chains[] = { &m_CommandStateChain, &m_ShowMenuShortcutChain };
@@ -566,8 +588,10 @@ private:
     void OnDestroy();
     void OnSize(UINT state, int cx, int cy);
     void OnCommand(int id, HWND hWndCtl, UINT codeNotify);
+    LRESULT OnNotify(DWORD dwID, LPNMHDR pNmHdr);
     void OnActivate(UINT state, HWND hWndActDeact, BOOL fMinimized);
     void OnDropFiles(HDROP hdrop);
+    void OnParentNotify(UINT msg, HWND hWndChild, int idChild);
 
 private:
     HWND GetActiveChild(BOOL* b = nullptr) const
@@ -611,8 +635,23 @@ private:
 
     void GetState(UINT id, State& state) const;
 
+    int GetTabIndex(TextDocWindow* pDoc)
+    {
+        const int c = TabCtrl_GetItemCount(m_hTabControl);
+        for (int i = 0; i < c; ++i)
+        {
+            TCITEM tci = {};
+            tci.mask = TCIF_PARAM;
+            TabCtrl_GetItem(m_hTabControl, i, &tci);
+            if ((TextDocWindow*) tci.lParam == pDoc)
+                return i;
+        }
+        return -1; // Not found
+    }
+
     HFONT m_hFont = NULL;
     HACCEL m_hAccelTable = NULL;
+    HWND m_hTabControl = NULL;
     HWND m_hStatusBar = NULL;
 
     CommandStateChain m_CommandStateChain;
@@ -633,6 +672,8 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
         DEFAULT_PITCH | FF_DONTCARE,
         TEXT("Consolas")));
 
+    m_hTabControl = CHECK_LE(CreateWindowEx(0, WC_TABCONTROL, NULL, WS_CHILD | WS_VISIBLE | TCS_FOCUSNEVER | TCS_SINGLELINE, 50, 50, 100, 100, *this, (HMENU) ID_TABCTRL, g_hInstance, NULL));
+    CHECK_LE(TabCtrl_SetUnicodeFormat(m_hTabControl, TRUE));
     m_hStatusBar = CHECK_LE(CreateStatusWindow(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, TEXT("Ready"), *this, 0));
 
     m_ShowMenuShortcutChain.Init(m_hAccelTable);
@@ -669,6 +710,24 @@ void RootWindow::OnDestroy()
 
 void RootWindow::OnSize(UINT state, int cx, int cy)
 {
+    RECT rcMDIClient;
+    CHECK_LE(GetClientRect(*this, &rcMDIClient));
+
+    if (m_hTabControl)
+    {
+        RECT rcTab = {};
+        TabCtrl_GetItemRect(m_hTabControl, 0, &rcTab);
+
+        RECT rcTabControl;
+        CHECK_LE(GetWindowRect(m_hTabControl, &rcTabControl));
+        CHECK_LE(OffsetRect(&rcTabControl, -rcTabControl.left, -rcTabControl.top));
+        rcTabControl.bottom = Height(rcTab);
+        rcTabControl.right = Width(rcMDIClient);
+        rcMDIClient.top += Height(rcTabControl);
+
+        CHECK_LE(SetWindowPos(m_hTabControl, NULL, rcTabControl.left, rcTabControl.top, Width(rcTabControl), Height(rcTabControl), SWP_NOZORDER | SWP_NOACTIVATE));
+    }
+
     if (m_hStatusBar)
     {
         const int partsizes[] = { 200 };
@@ -688,13 +747,10 @@ void RootWindow::OnSize(UINT state, int cx, int cy)
         RECT rcStatusBar;
         CHECK_LE(GetWindowRect(m_hStatusBar, &rcStatusBar));
 
-        RECT rcMDIClient;
-        CHECK_LE(GetClientRect(*this, &rcMDIClient));
         rcMDIClient.bottom -= Height(rcStatusBar);
-        CHECK_LE(SetWindowPos(GetMDIClient(), NULL, rcMDIClient.left, rcMDIClient.top, Width(rcMDIClient), Height(rcMDIClient), SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW));
     }
-    else
-        SetHandled(false);
+
+    CHECK_LE(SetWindowPos(GetMDIClient(), NULL, rcMDIClient.left, rcMDIClient.top, Width(rcMDIClient), Height(rcMDIClient), SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW));
 }
 
 bool FileOpenDialog(HWND hWndOwner, std::wstring& filename, DWORD& cp);
@@ -739,12 +795,15 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         SendMessage(*this, WM_CLOSE, 0, 0);
         break;
     case ID_WINDOW_TILEVERTICAL:
+        // WM_MDITILE
         TileWindows(GetMDIClient(), MDITILE_VERTICAL, nullptr, 0, nullptr);
         break;
     case ID_WINDOW_TILEHORIZONTAL:
+        // WM_MDITILE
         TileWindows(GetMDIClient(), MDITILE_HORIZONTAL, nullptr, 0, nullptr);
         break;
     case ID_WINDOW_CASCADE:
+        // WM_MDICASCADE 
         CascadeWindows(GetMDIClient(), 0, nullptr, 0, nullptr);
         break;
     default:
@@ -755,6 +814,35 @@ void RootWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         SetHandled(false);
         break;
     }
+    }
+}
+
+LRESULT RootWindow::OnNotify(DWORD dwID, LPNMHDR pNmHdr)
+{
+    switch (dwID)
+    {
+    case ID_TABCTRL:
+        switch (pNmHdr->code)
+        {
+        case TCN_SELCHANGE:
+        {
+            const int index = TabCtrl_GetCurSel(m_hTabControl);
+            if (index >= 0)
+            {
+                TCITEM tci = {};
+                tci.mask = TCIF_PARAM;
+                TabCtrl_GetItem(m_hTabControl, index, &tci);
+                TextDocWindow* pDoc = (TextDocWindow*) tci.lParam;
+                SendMessage(GetMDIClient(), WM_MDIACTIVATE, (WPARAM) HWND(*pDoc), 0);
+            }
+            break;
+        }
+        }
+        return 0;
+
+    default:
+        SetHandled(false);
+        return 0;
     }
 }
 
@@ -799,6 +887,48 @@ void RootWindow::OnDropFiles(HDROP hdrop)
         TCHAR filename[MAX_PATH] = {};
         if (DragQueryFile(hdrop, i, filename, ARRAYSIZE(filename)))
             OpenFile(filename);
+    }
+}
+
+void RootWindow::OnParentNotify(UINT msg, HWND hWndChild, int idChild)
+{
+    switch (msg)
+    {
+    case WM_MDICREATE:
+    {
+        TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(MessageHandler::GetFrom(hWndChild));
+        if (pDoc)
+        {
+            stdt::string title = pDoc->GetShortTitle();
+            TC_ITEM item = {};
+            item.mask |= TCIF_TEXT | TCIF_PARAM;
+            item.pszText = title.data();
+            item.lParam = (LPARAM) pDoc;
+            TabCtrl_InsertItem(m_hTabControl, TabCtrl_GetItemCount(m_hTabControl), &item);
+        }
+        break;
+    }
+    case WM_MDIACTIVATE:
+    {
+        TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(MessageHandler::GetFrom(hWndChild));
+        if (pDoc)
+        {
+            int index = GetTabIndex(pDoc);
+            if (index >= 0 && TabCtrl_GetCurSel(m_hTabControl) != index)
+                TabCtrl_SetCurSel(m_hTabControl, index);
+        }
+        break;
+    }
+    case WM_MDIDESTROY:
+    {
+        TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(MessageHandler::GetFrom(hWndChild));
+        if (pDoc)
+        {
+            int index = GetTabIndex(pDoc);
+            TabCtrl_DeleteItem(m_hTabControl, index);
+        }
+        break;
+    }
     }
 }
 
