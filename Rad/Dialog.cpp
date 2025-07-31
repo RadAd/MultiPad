@@ -42,9 +42,9 @@ LRESULT Dialog::HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-LRESULT Dialog::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT Dialog::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    const LRESULT ret = MessageHandler::ProcessMessage(uMsg, wParam, lParam, bHandled);
+    const LRESULT ret = MessageHandler::ProcessMessage(uMsg, wParam, lParam);
 
     switch (uMsg)
     {

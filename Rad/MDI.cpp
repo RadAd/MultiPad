@@ -103,7 +103,7 @@ LRESULT MDIFrame::HandleMessage(const UINT uMsg, const WPARAM wParam, const LPAR
     return 0;
 }
 
-LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
@@ -119,12 +119,12 @@ LRESULT MDIFrame::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& 
         break;
     }
 
-    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
+    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam);
 
-    if (bHandled && (uMsg == WM_COMMAND || uMsg == WM_MENUCHAR || uMsg == WM_SETFOCUS /*|| uMsg == WM_SIZE*/ || uMsg == WM_INITMENUPOPUP))
+    if (IsHandled() && (uMsg == WM_COMMAND || uMsg == WM_MENUCHAR || uMsg == WM_SETFOCUS /*|| uMsg == WM_SIZE*/ || uMsg == WM_INITMENUPOPUP))
         DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam);
 
-    return bHandled ? ret : (bHandled = true, DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam));
+    return IsHandled() ? ret : (SetHandled(true), DefFrameProc(*this, GetMDIClient(), uMsg, wParam, lParam));
 }
 
 void MDIFrame::CreateMDIClient()
@@ -152,12 +152,12 @@ LRESULT MDIChild::HandleMessage(const UINT uMsg, const WPARAM wParam, const LPAR
     return 0;
 }
 
-LRESULT MDIChild::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT MDIChild::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
+    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam);
 
-    if (bHandled && (uMsg == WM_CHILDACTIVATE || uMsg == WM_GETMINMAXINFO || uMsg == WM_MENUCHAR || uMsg == WM_MOVE || uMsg == WM_SETFOCUS || uMsg == WM_SIZE || uMsg == WM_SYSCOMMAND))
+    if (IsHandled() && (uMsg == WM_CHILDACTIVATE || uMsg == WM_GETMINMAXINFO || uMsg == WM_MENUCHAR || uMsg == WM_MOVE || uMsg == WM_SETFOCUS || uMsg == WM_SIZE || uMsg == WM_SYSCOMMAND))
         DefMDIChildProc(*this, uMsg, wParam, lParam);
 
-    return bHandled ? ret : (bHandled = true, DefMDIChildProc(*this, uMsg, wParam, lParam));
+    return IsHandled() ? ret : (SetHandled(true), DefMDIChildProc(*this, uMsg, wParam, lParam));
 }

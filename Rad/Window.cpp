@@ -11,7 +11,7 @@ namespace
     }
 }
 
-inline void GetDefaultWndClass(WNDCLASS& wc)
+void GetDefaultWndClass(WNDCLASS& wc)
 {
     wc.style |= CS_DBLCLKS;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -56,9 +56,9 @@ void WindowBase::GetWndClass(WNDCLASS& wc)
     wc.hInstance = g_hInstance;
 }
 
-LRESULT WindowBase::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT WindowBase::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    const LRESULT ret = MessageHandler::ProcessMessage(uMsg, wParam, lParam, bHandled);
+    const LRESULT ret = MessageHandler::ProcessMessage(uMsg, wParam, lParam);
 
     if (uMsg == WM_NCDESTROY)
     {
@@ -132,11 +132,11 @@ LRESULT Window::HandleMessage(const UINT uMsg, const WPARAM wParam, const LPARAM
     }
 }
 
-LRESULT Window::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT Window::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam, bHandled);
+    const LRESULT ret = WindowBase::ProcessMessage(uMsg, wParam, lParam);
 
-    return bHandled ? ret : (bHandled = true, DefWindowProc(*this, uMsg, wParam, lParam));
+    return IsHandled() ? ret : (SetHandled(true), DefWindowProc(*this, uMsg, wParam, lParam));
 }
 
 void Window::OnPaint()

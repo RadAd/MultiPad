@@ -23,7 +23,7 @@ protected:
     virtual HWND CreateWnd(const CREATESTRUCT& cs);
     virtual void GetClientCreate(CLIENTCREATESTRUCT& ccs);
     virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
-    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled) override;
+    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
     //virtual void PostHandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
 private:
@@ -37,6 +37,6 @@ class MDIChild : public WindowBase
 protected:
     virtual HWND CreateWnd(const CREATESTRUCT& cs);
     virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
-    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled) override;
+    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
     //virtual void PostHandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 };

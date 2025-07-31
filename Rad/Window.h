@@ -79,7 +79,7 @@ protected:
         LPVOID lpCreateParams;
         WindowBase* wnd;
     };
-    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled) override;
+    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
 
 private:
     static void Store(HWND hWnd, MessageHandler* wnd)
@@ -97,7 +97,7 @@ protected:
     virtual HWND CreateWnd(const CREATESTRUCT& cs);
 
     virtual LRESULT HandleMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
-    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled) override;
+    virtual LRESULT ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam) override;
     virtual void OnDraw(const PAINTSTRUCT* pps) const {}
 
 private:

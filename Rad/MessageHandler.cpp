@@ -15,11 +15,8 @@ namespace
     }
 }
 
-LRESULT MessageHandler::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, bool& bHandled)
+LRESULT MessageHandler::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    Message m = { uMsg, wParam, lParam, false };
-    Message* const pMsg = std::exchange(m_msg, &m);
-
     LRESULT ret = 0;
     try
     {
@@ -29,11 +26,6 @@ LRESULT MessageHandler::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam, 
     {
         _RPTFT0(_CRT_ERROR, TEXT("Unhandled exception"));
     }
-
-    _ASSERTE(m_msg == &m);
-    std::exchange(m_msg, pMsg);
-
-    bHandled = m.m_bHandled;
     return ret;
 }
 
@@ -48,12 +40,19 @@ LRESULT CALLBACK MessageHandler::s_WndProc(const HWND hWnd, const UINT uMsg, con
     if (!self)
         return 0;
 
-    const LRESULT ret = self->ProcessMessage(uMsg, wParam, lParam, bHandled);
-    //_ASSERT(bHandled);
+    Message m = { uMsg, wParam, lParam, false };
+    Message* const pMsg = std::exchange(self->m_msg, &m);
+
+    const LRESULT ret = self->ProcessMessage(uMsg, wParam, lParam);
+
+    _ASSERTE(self->m_msg == &m);
+    std::exchange(self->m_msg, pMsg);
 
     if (self->m_bDelete && self->m_msg == nullptr)
         delete self;
 
+    bHandled = m.m_bHandled;
+    _ASSERT(bHandled);
     return ret;
 }
 
