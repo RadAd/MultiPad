@@ -29,6 +29,15 @@ LRESULT MessageHandler::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
     return ret;
 }
 
+LRESULT MessageHandler::ChainMessage(MessageChain* pChain)
+{
+    bool bHandled = false;
+    LRESULT ret = pChain->ProcessMessage(m_hWnd, m_msg->m_message, m_msg->m_wParam, m_msg->m_lParam, bHandled);
+    if (bHandled)
+        SetHandled(true);
+    return ret;
+}
+
 MessageHandler* MessageHandler::GetFrom(HWND hWnd)
 {
     return reinterpret_cast<MessageHandler*>(GetWindowLongPtr(hWnd, IsDialog(hWnd) ? DWLP_USER : GWLP_USERDATA));

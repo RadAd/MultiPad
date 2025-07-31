@@ -159,10 +159,7 @@ protected:
             //if (IsHandled())
                 //break;
 
-            bool bHandled = false;
-            ret = pChain->ProcessMessage(*this, uMsg, wParam, lParam, bHandled);
-            if (bHandled)
-                SetHandled(true);
+            ChainMessage(pChain);
         }
         if (!IsHandled())
             ret = MDIChild::HandleMessage(uMsg, wParam, lParam);
@@ -565,10 +562,7 @@ protected:
             //if (IsHandled())
                 //break;
 
-            bool bHandled = false;
-            ret = pChain->ProcessMessage(*this, uMsg, wParam, lParam, bHandled);
-            if (bHandled)
-                SetHandled(true);
+            ChainMessage(pChain);
         }
         if (uMsg == WM_INITMENUPOPUP)
         {
