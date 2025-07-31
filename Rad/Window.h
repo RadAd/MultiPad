@@ -24,6 +24,7 @@ public:
     static void GetCreateWindow(CREATESTRUCT& cs)
     {
         cs.lpszClass = T::Class::ClassName();
+        T::GetCreateWindow(cs);
         T::Class::GetCreateWindow(cs);
     }
 
@@ -38,6 +39,8 @@ public:
         cs.cx = CW_USEDEFAULT;
         cs.cy = CW_USEDEFAULT;
         GetCreateWindow(cs);
+        _ASSERT(cs.hInstance != NULL);
+        _ASSERT(cs.lpszClass != NULL);
         return Create(cs);
     }
 
@@ -72,6 +75,7 @@ class WindowBase : public MessageHandler
 {
 public:
     static void GetWndClass(WNDCLASS& cs);
+    static void GetCreateWindow(CREATESTRUCT& cs);
 
 protected:
     struct CreateWndParams

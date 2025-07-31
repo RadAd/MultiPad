@@ -56,6 +56,11 @@ void WindowBase::GetWndClass(WNDCLASS& wc)
     wc.hInstance = g_hInstance;
 }
 
+void WindowBase::GetCreateWindow(CREATESTRUCT& cs)
+{
+    cs.hInstance = g_hInstance;
+}
+
 LRESULT WindowBase::ProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     const LRESULT ret = MessageHandler::ProcessMessage(uMsg, wParam, lParam);
