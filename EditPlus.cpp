@@ -92,6 +92,19 @@ namespace
             CHECK_LE(InvalidateRect(hWnd, NULL, TRUE));
         }
     }
+
+    inline SIZE GetGutterSize(HWND hWnd, HDC hDC)
+    {
+        SIZE sz = {};
+        {
+            SIZE szText = {};
+            GetTextExtentPoint32(hDC, TEXT("99999"), 5, &szText);
+            sz.cx += szText.cx;
+            if (szText.cy > sz.cy)
+                sz.cy = szText.cy;
+        }
+        return sz;
+    }
 }
 
 struct EditExData
@@ -250,6 +263,67 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             NotifyParent(hWnd, EN_SEL_CHANGED);
         eexd->nPos = (DWORD) lParam;
         break;
+
+    case WM_PAINT:
+    {
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+
+        const HDC hDC = GetDC(hWnd);
+        SelectFont(hDC, GetWindowFont(hWnd));
+
+        const SIZE gutterSize = GetGutterSize(hWnd, hDC);
+
+        RECT rc = {};
+        GetClientRect(hWnd, &rc);
+        rc.right = rc.left + gutterSize.cx;
+
+        const COLORREF color = GetSysColor(COLOR_MENU);
+        SetDCPenColor(hDC, color);
+        SetDCBrushColor(hDC, color);
+        SelectPen(hDC, GetStockObject(DC_PEN));
+        SelectBrush(hDC, GetStockObject(DC_BRUSH));
+        Rectangle(hDC, rc.left, rc.top, rc.right, rc.bottom);
+
+        SetBkColor(hDC, color);
+        SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
+        const int first = Edit_GetFirstVisibleLine(hWnd);
+        const int count = Edit_GetLineCount(hWnd);
+        const LONG rowHeight = gutterSize.cy;
+        RECT rcText = rc;
+        rcText.bottom = rcText.top + rowHeight;
+        for (int i = first; i < count; ++i)
+        {
+            TCHAR text[100];
+            int len = wsprintf(text, TEXT("%d"), i + 1);
+            UINT clip = DT_NOCLIP;
+            if (rcText.bottom > rc.bottom)
+            {
+                rcText.bottom = rc.bottom;
+                clip = 0;
+            }
+            DrawText(hDC, text, len, &rcText, DT_RIGHT | DT_TOP | clip);
+
+            rcText.top += rowHeight;
+            rcText.bottom += rowHeight;
+            if (rcText.top > rc.bottom)
+                break;
+        }
+        ReleaseDC(hWnd, hDC);
+        break;
+    }
+    case WM_SIZE:
+    {
+        const SIZE sz = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        const HDC hDC = GetDC(hWnd);
+        SelectFont(hDC, GetWindowFont(hWnd));
+        const SIZE gutterSize = GetGutterSize(hWnd, hDC);
+        ReleaseDC(hWnd, hDC);
+        const RECT rc = { gutterSize.cx + 3, 0, sz.cx, sz.cy };
+        Edit_SetRect(hWnd, &rc);
+        break;
+    }
+
     default:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         break;
