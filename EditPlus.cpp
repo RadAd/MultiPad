@@ -1,7 +1,23 @@
 #include "EditPlus.h"
 
+#ifndef _DEBUG
+#define _VERIFY(x) (x)
+#else
+#define _VERIFY(x) _ASSERT(x)
+#endif
+
 namespace
 {
+    inline LONG Width(const RECT r)
+    {
+        return r.right - r.left;
+    }
+
+    inline LONG Height(const RECT r)
+    {
+        return r.bottom - r.top;
+    }
+
     struct EditData
     {
         HLOCAL hText;
@@ -83,13 +99,15 @@ namespace
     inline void EditExSetViewWhiteSpace(HWND hWnd, bool viewWhiteSpace)
     {
         const HANDLE hText = Edit_GetHandle(hWnd);
-        const SIZE_T size = CHECK_LE(GlobalSize(hText) / sizeof(TCHAR));
-        LPTSTR lpText = (LPTSTR) CHECK_LE(GlobalLock(hText));
+        const SIZE_T size = GlobalSize(hText) / sizeof(TCHAR);
+        _ASSERT(size != 0);
+        LPTSTR lpText = (LPTSTR) GlobalLock(hText);
+        _ASSERT(lpText);
         if (lpText)
         {
             ModifyWhiteSpace(lpText, size, viewWhiteSpace);
             GlobalUnlock(hText);
-            CHECK_LE(InvalidateRect(hWnd, NULL, TRUE));
+            _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
         }
     }
 
@@ -110,7 +128,7 @@ namespace
 struct EditExData
 {
     DWORD nPos; // Last mouse position
-    bool viewWhiteSpace = false; // Show whitespace
+    DWORD dwExStyle = 0;
 };
 
 LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR dwRefData)
@@ -127,21 +145,19 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         *nCaret = EditGetCaret(hWnd);
         break;
     }
-    case EM_EX_GETVIEWWHITESPACE:
-        ret = eexd->viewWhiteSpace ? TRUE : FALSE;
+    case EM_EX_GETSTYLE:
+        ret = eexd->dwExStyle;
         break;
-    case EM_EX_SETVIEWWHITESPACE:
+    case EM_EX_SETSTYLE:
     {
-        const bool viewWhiteSpace = wParam;
-        if (eexd->viewWhiteSpace != viewWhiteSpace)
-        {
-            EditExSetViewWhiteSpace(hWnd, viewWhiteSpace);
-            eexd->viewWhiteSpace = viewWhiteSpace;
-        }
+        DWORD dwExStyle = (DWORD) wParam;
+        if ((eexd->dwExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
+            EditExSetViewWhiteSpace(hWnd, wParam & ES_EX_VIEWWHITESPACE);
+        eexd->dwExStyle = dwExStyle;
         break;
     }
     case WM_CHAR:
-        if (eexd->viewWhiteSpace)
+        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         break;
@@ -167,19 +183,22 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         if (nSelStart != nSelEnd)
         {
             const DWORD nLength = nSelEnd - nSelStart;
-            const HANDLE hClip = CHECK_LE(GlobalAlloc(GMEM_MOVEABLE, (nLength + 1) * sizeof(TCHAR)));
-            LPTSTR lpClip = (LPTSTR) CHECK_LE(GlobalLock(hClip));
+            const HANDLE hClip = GlobalAlloc(GMEM_MOVEABLE, (nLength + 1) * sizeof(TCHAR));
+            _ASSERT(hClip);
+            LPTSTR lpClip = (LPTSTR) GlobalLock(hClip);
+            _ASSERT(lpClip);
             if (lpClip)
             {
                 const HANDLE hText = Edit_GetHandle(hWnd);
-                LPCTSTR lpText = (LPTSTR) CHECK_LE(GlobalLock(hText));
+                LPCTSTR lpText = (LPTSTR) GlobalLock(hText);
+                _ASSERT(lpText);
                 if (lpText)
                 {
                     CopyMemory(lpClip, lpText + nSelStart, nLength * sizeof(TCHAR));
                     lpClip[nLength] = TEXT('\0');
                     GlobalUnlock(hText);
 
-                    if (eexd->viewWhiteSpace)
+                    if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
                         ModifyWhiteSpace(lpClip, nLength, false);
                 }
                 GlobalUnlock(hClip);
@@ -204,15 +223,17 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         const HANDLE hClip = GetClipboardData(CF_UNICODETEXT);
         if (hClip)
         {
-            LPTSTR lpClip = (LPTSTR) CHECK_LE(GlobalLock(hClip));
+            LPTSTR lpClip = (LPTSTR) GlobalLock(hClip);
+            _ASSERT(lpClip);
             if (lpClip)
             {
-                const SIZE_T size = CHECK_LE(GlobalSize(hClip)) / sizeof(TCHAR);
+                const SIZE_T size = GlobalSize(hClip) / sizeof(TCHAR);
+                _ASSERT(size != 0);
                 Edit_ReplaceSelEx(hWnd, lpClip, TRUE);
                 GlobalUnlock(hClip);
             }
         }
-        CHECK_LE(CloseClipboard());
+        _VERIFY(CloseClipboard());
         break;
     }
     case EM_REPLACESEL:
@@ -221,10 +242,11 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
         const DWORD dwSelStart = nSelStart;
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->viewWhiteSpace)
+        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
         {
             const HANDLE hText = Edit_GetHandle(hWnd);
-            LPTSTR lpText = (LPTSTR) CHECK_LE(GlobalLock(hText));
+            LPTSTR lpText = (LPTSTR) GlobalLock(hText);
+            _ASSERT(lpText);
             if (lpText)
             {
                 DWORD nCaretPos;
@@ -232,19 +254,19 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
                 ModifyWhiteSpace(lpText + dwSelStart, nCaretPos - dwSelStart, true);
                 GlobalUnlock(hText);
             }
-            CHECK_LE(InvalidateRect(hWnd, NULL, TRUE));
+            _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
         }
         NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     }
     case WM_SETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->viewWhiteSpace)
+        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
             EditExSetViewWhiteSpace(hWnd, true);
         break;
     case WM_GETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->viewWhiteSpace)
+        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(lParam), wParam, false);
         break;
 
@@ -337,5 +359,5 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
 void InitEditEx(HWND hWnd)
 {
-    CHECK_LE(SetWindowSubclass(hWnd, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({}))));
+    _VERIFY(SetWindowSubclass(hWnd, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({}))));
 }

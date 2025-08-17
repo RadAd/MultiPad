@@ -19,6 +19,7 @@
 #include "CommandStateChain.h"
 #include "ShowMenuShortcutChain.h"
 #include "EditPlus.h"
+#include "GdiPlus.h"
 
 // TODO
 // Application icon
@@ -447,8 +448,9 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         break;
     case ID_VIEW_WHITESPACE:
     {
-        const BOOL bViewWhitespace = EditEx_GetViewWhiteSpace(m_hWndChild);
-        EditEx_SetViewWhiteSpace(m_hWndChild, !bViewWhitespace);
+        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
+        dwExStyle ^= ES_EX_VIEWWHITESPACE;
+        EditEx_SetStyle(m_hWndChild, dwExStyle);
         break;
     }
     case ID_EDIT:
@@ -511,7 +513,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
     case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
-    case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetViewWhiteSpace(m_hWndChild); break;
+    case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
     }
 }
 
