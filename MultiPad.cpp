@@ -261,8 +261,8 @@ private:
 
     void SetStatusBarText()
     {
-        DWORD nCaretPos, nSelStart, nSelEnd;
-        EditEx_GetCaret(m_hWndChild, &nCaretPos);
+        const DWORD nCaretPos = EditEx_GetCaret(m_hWndChild);
+        DWORD nSelStart, nSelEnd;
         Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
         _ASSERT(nCaretPos == nSelStart || nCaretPos == nSelEnd);
         const POINT editpos = EditGetPos(m_hWndChild, nCaretPos);

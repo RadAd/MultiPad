@@ -140,11 +140,8 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     switch (uMsg)
     {
     case EM_EX_GETCARET:
-    {
-        DWORD* nCaret = (DWORD*) wParam;
-        *nCaret = EditGetCaret(hWnd);
+        ret = EditGetCaret(hWnd);
         break;
-    }
     case EM_EX_GETSTYLE:
         ret = eexd->dwExStyle;
         break;
@@ -249,8 +246,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             _ASSERT(lpText);
             if (lpText)
             {
-                DWORD nCaretPos;
-                EditEx_GetCaret(hWnd, &nCaretPos);
+                const DWORD nCaretPos = EditGetCaret(hWnd);
                 ModifyWhiteSpace(lpText + dwSelStart, nCaretPos - dwSelStart, true);
                 GlobalUnlock(hText);
             }
@@ -359,5 +355,6 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
 void InitEditEx(HWND hWnd)
 {
+    _ASSERT(GetWindowStyle(hWnd) & ES_MULTILINE);
     _VERIFY(SetWindowSubclass(hWnd, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({}))));
 }

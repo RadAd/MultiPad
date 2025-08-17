@@ -30,11 +30,11 @@ void InitEditEx(HWND hWnd);
 
 //#define Edit_GetSelEx(hwndCtl, ichStart, ichEnd)  ((void)SNDMSG((hwndCtl), EM_GETSEL, (WPARAM)(ichStart), (LPARAM)(ichEnd)))
 //#define Edit_ReplaceSelEx(hwndCtl, lpszReplace, allowundo)   ((void)SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM)(LPCTSTR)(lpszReplace)))
-//#define Edit_Scroll(hwndCtl, dv, dh)            ((void)SNDMSG((hwndCtl), EM_LINESCROLL, (WPARAM)(dh), (LPARAM)(dv)))
+//#define Edit_Scroll(hwndCtl, dv, dh)            ((DWORD)SNDMSG((hwndCtl), EM_LINESCROLL, (WPARAM)(dh), (LPARAM)(dv)))
 
 inline void Edit_GetSelEx(HWND hwndCtl, DWORD* ichStart, DWORD* ichEnd) { ((void) SNDMSG((hwndCtl), EM_GETSEL, (WPARAM) (ichStart), (LPARAM) (ichEnd))); }
 inline void Edit_ReplaceSelEx(HWND hwndCtl, LPCTSTR lpszReplace, BOOL allowundo) { ((void) SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM) (LPCTSTR) (lpszReplace))); }
-inline void Edit_ScrollEx(HWND hwndCtl, UINT action) { ((void) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
+inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
 
 // Edit Plus Messages
 
@@ -58,6 +58,6 @@ inline void Edit_ScrollEx(HWND hwndCtl, UINT action) { ((void) SNDMSG((hwndCtl),
 // tabs/spaces
 
 
-inline void EditEx_GetCaret(HWND hwndCtl, DWORD* dwCaret) { ((void) SNDMSG((hwndCtl), EM_EX_GETCARET, (WPARAM) (dwCaret), 0)); }
+inline DWORD EditEx_GetCaret(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETCARET, 0, 0)); }
 inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
-inline DWORD EditEx_GetStyle(HWND hwndCtl) { ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }
+inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }
