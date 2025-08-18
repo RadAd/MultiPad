@@ -446,6 +446,57 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         m_LineEndings = LineEndings::Macintosh;
         SetModified();
         break;
+    case ID_VIEW_WORDWRAP:
+    {
+        DWORD dwStyle = GetWindowStyle(m_hWndChild);
+        dwStyle ^= WS_HSCROLL;
+        HWND hNewEdit = Edit_Create(*this, dwStyle, RECT(), ID_EDIT);
+        if (hNewEdit)
+        {
+            InitEditEx(hNewEdit);
+            EditEx_SetStyle(hNewEdit, EditEx_GetStyle(m_hWndChild));
+            SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
+            Edit_LimitText(hNewEdit, Edit_GetLimitText(m_hWndChild));
+            //Edit_SetMargins(hNewEdit, EC_LEFTMARGIN | EC_RIGHTMARGIN, Edit_GetMargins(m_hWndChild));
+            {
+                RECT rc;
+                Edit_GetRect(m_hWndChild, &rc);
+                Edit_SetRect(hNewEdit, &rc);
+            }
+
+            DWORD dwSelStart, dwSelEnd;
+            Edit_GetSelEx(m_hWndChild, &dwSelStart, &dwSelEnd);
+#if 1
+            const HANDLE hNewText = Edit_GetHandle(hNewEdit);
+            const HANDLE hText = Edit_GetHandle(m_hWndChild);
+            Edit_SetHandle(m_hWndChild, hNewText);
+            Edit_SetHandle(hNewEdit, hText);
+#else
+            int nLength = Edit_GetTextLength(m_hWndChild) + 1;
+            LPTSTR pText = new TCHAR[nLength];
+            pText[nLength - 1] = TEXT('\0');
+            Edit_GetText(m_hWndChild, pText, nLength);
+            Edit_SetText(hNewEdit, pText);
+            delete[] pText;
+#endif
+            Edit_SetModify(hNewEdit, Edit_GetModify(m_hWndChild));
+            Edit_SetSel(hNewEdit, dwSelStart, dwSelEnd);
+
+            // TODO copy caret position, scroll position, margins, password char, readonly, tabstops, word break, undo buffer, etc.
+
+            {
+                RECT rc;
+                CHECK_LE(GetWindowRect(m_hWndChild, &rc));
+                CHECK_LE(ScreenToClient(*this, &rc));
+                CHECK_LE(SetWindowPos(hNewEdit, NULL, rc.left, rc.top, Width(rc), Height(rc), SWP_NOZORDER | SWP_NOACTIVATE));
+            }
+
+            DestroyWindow(m_hWndChild);
+            m_hWndChild = hNewEdit;
+            SetFocus(m_hWndChild);
+        }
+        break;
+    }
     case ID_VIEW_WHITESPACE:
     {
         DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
@@ -513,6 +564,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
     case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
+    case ID_VIEW_WORDWRAP:          state.checked = (GetWindowStyle(m_hWndChild) & WS_HSCROLL) == 0; break;
     case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
     }
 }
