@@ -111,7 +111,7 @@ namespace
         }
     }
 
-    inline SIZE GetGutterSize(HWND hWnd, HDC hDC)
+    inline SIZE GetLineNumberSize(HWND hWnd, HDC hDC)
     {
         SIZE sz = {};
         {
@@ -128,6 +128,7 @@ namespace
 struct EditExData
 {
     DWORD nPos; // Last mouse position
+    DWORD nLineNumberWidth = 0;
     DWORD dwExStyle = 0;
 };
 
@@ -150,6 +151,32 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         DWORD dwExStyle = (DWORD) wParam;
         if ((eexd->dwExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
             EditExSetViewWhiteSpace(hWnd, wParam & ES_EX_VIEWWHITESPACE);
+        if ((eexd->dwExStyle & ES_EX_LINENUMBERS) != (dwExStyle & ES_EX_LINENUMBERS))
+        {
+            if (dwExStyle & ES_EX_LINENUMBERS)
+            {
+                const HDC hDC = GetDC(hWnd);
+                SelectFont(hDC, GetWindowFont(hWnd));
+                const SIZE sz = GetLineNumberSize(hWnd, hDC);
+                ReleaseDC(hWnd, hDC);
+
+                eexd->nLineNumberWidth = sz.cx;
+
+                RECT rc;
+                Edit_GetRect(hWnd, &rc);
+                rc.left += eexd->nLineNumberWidth;
+                Edit_SetRect(hWnd, &rc);
+            }
+            else
+            {
+                RECT rc;
+                Edit_GetRect(hWnd, &rc);
+                rc.left -= eexd->nLineNumberWidth;
+                Edit_SetRect(hWnd, &rc);
+
+                eexd->nLineNumberWidth = 0;
+            }
+        }
         eexd->dwExStyle = dwExStyle;
         break;
     }
@@ -289,11 +316,11 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         const HDC hDC = GetDC(hWnd);
         SelectFont(hDC, GetWindowFont(hWnd));
 
-        const SIZE gutterSize = GetGutterSize(hWnd, hDC);
+        //const SIZE gutterSize = GetGutterSize(hWnd, hDC);
 
         RECT rc = {};
         GetClientRect(hWnd, &rc);
-        rc.right = rc.left + gutterSize.cx;
+        rc.right = rc.left + eexd->nLineNumberWidth;
 
         const COLORREF color = GetSysColor(COLOR_MENU);
         // TODO Use WM_CTLCOLORGUTTER
@@ -349,11 +376,10 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     {
         const SIZE sz = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        const HDC hDC = GetDC(hWnd);
-        SelectFont(hDC, GetWindowFont(hWnd));
-        const SIZE gutterSize = GetGutterSize(hWnd, hDC);
-        ReleaseDC(hWnd, hDC);
-        const RECT rc = { gutterSize.cx + 3, 0, sz.cx, sz.cy };
+
+        RECT rc;
+        Edit_GetRect(hWnd, &rc);
+        rc.left += eexd->nLineNumberWidth;
         Edit_SetRect(hWnd, &rc);
         break;
     }

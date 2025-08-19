@@ -77,9 +77,10 @@ inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_
 
 // Edit Plus Styles
 
-#define ES_EX_VIEWWHITESPACE 0x00000001
+#define ES_EX_VIEWWHITESPACE    0x00000001
+#define ES_EX_LINENUMBERS       0x00000002
 
-// whitespace
+// TODO
 // line numbers
 // bookmarks
 // show unprintable characters

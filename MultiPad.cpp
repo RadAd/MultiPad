@@ -30,20 +30,14 @@
 // Word boundaries  Edit_SetWordBreakProc
 // Save position in registry
 // Choose font
-// Word wrap - need to recreate the edit control and copy over all state
 // Open from url
 // Recent file list
 // goto line
 // tab mode
 // split view
-// tab controls
 // readonly mode
 // Edit_GetEndOfLine/Edit_SetEndOfLine
 // Edit_SetExtendedStyle
-
-// TODO - Not sure this can be done with the edit control
-// line numbers - see https://github.com/katahiromz/LineNumEdit
-// bookmarks
 
 namespace stdt
 {
@@ -504,6 +498,13 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         EditEx_SetStyle(m_hWndChild, dwExStyle);
         break;
     }
+    case ID_VIEW_LINENUMBERS:
+    {
+        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
+        dwExStyle ^= ES_EX_LINENUMBERS;
+        EditEx_SetStyle(m_hWndChild, dwExStyle);
+        break;
+    }
     case ID_EDIT:
         switch (codeNotify)
         {
@@ -566,6 +567,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
     case ID_VIEW_WORDWRAP:          state.checked = (GetWindowStyle(m_hWndChild) & WS_HSCROLL) == 0; break;
     case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
+    case ID_VIEW_LINENUMBERS:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
     }
 }
 
