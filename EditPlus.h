@@ -4,6 +4,15 @@
 #include <CommCtrl.h>
 #include <crtdbg.h>
 
+//#define MAKEPOINT(l)       (*((LPPOINT)&(l)))
+inline POINT MAKEPOINT(DWORD l)
+{
+    POINT pt;
+    pt.x = LOWORD(l);
+    pt.y = HIWORD(l);
+    return pt;
+}
+
 inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
 {
     HWND hWnd = CreateWindow(
@@ -26,6 +35,23 @@ inline POINT EditGetPos(HWND hWnd, const DWORD dwCaret)
     return { (LONG) (dwCaret - dwLineIndex + 1), (LONG) (dwLine + 1) };
 }
 
+inline bool IsStartOfNewLine(LPCTSTR lpText, int index)
+{
+    return index == 0 || lpText[index - 1] == TEXT('\n');
+}
+
+inline int EditGetActualLine(HWND hWnd, int line, LPCTSTR lpText)
+{
+    int actualline = 0;
+    for (int i = 0; i < line; ++i)
+    {
+        const int index = Edit_LineIndex(hWnd, i);
+        if (IsStartOfNewLine(lpText, index))
+            ++actualline;
+    }
+    return actualline;
+}
+
 void InitEditEx(HWND hWnd);
 
 //#define Edit_GetSelEx(hwndCtl, ichStart, ichEnd)  ((void)SNDMSG((hwndCtl), EM_GETSEL, (WPARAM)(ichStart), (LPARAM)(ichEnd)))
@@ -35,6 +61,8 @@ void InitEditEx(HWND hWnd);
 inline void Edit_GetSelEx(HWND hwndCtl, DWORD* ichStart, DWORD* ichEnd) { ((void) SNDMSG((hwndCtl), EM_GETSEL, (WPARAM) (ichStart), (LPARAM) (ichEnd))); }
 inline void Edit_ReplaceSelEx(HWND hwndCtl, LPCTSTR lpszReplace, BOOL allowundo) { ((void) SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM) (LPCTSTR) (lpszReplace))); }
 inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
+inline POINT Edit_GetPosFromChar(HWND hwndCtl, UINT nChar) { return MAKEPOINT((DWORD) SNDMSG((hwndCtl), EM_POSFROMCHAR, (WPARAM) (nChar), 0)); }
+inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_GETLIMITTEXT, 0, 0)); }
 
 // Edit Plus Messages
 

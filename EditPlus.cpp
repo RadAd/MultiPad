@@ -296,36 +296,52 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         rc.right = rc.left + gutterSize.cx;
 
         const COLORREF color = GetSysColor(COLOR_MENU);
+        // TODO Use WM_CTLCOLORGUTTER
+        SetBkColor(hDC, color);
+        SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
         SetDCPenColor(hDC, color);
         SetDCBrushColor(hDC, color);
         SelectPen(hDC, GetStockObject(DC_PEN));
         SelectBrush(hDC, GetStockObject(DC_BRUSH));
+
         Rectangle(hDC, rc.left, rc.top, rc.right, rc.bottom);
 
-        SetBkColor(hDC, color);
-        SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
-        const int first = Edit_GetFirstVisibleLine(hWnd);
-        const int count = Edit_GetLineCount(hWnd);
-        const LONG rowHeight = gutterSize.cy;
-        RECT rcText = rc;
-        rcText.bottom = rcText.top + rowHeight;
-        for (int i = first; i < count; ++i)
-        {
-            TCHAR text[100];
-            int len = wsprintf(text, TEXT("%d"), i + 1);
-            UINT clip = DT_NOCLIP;
-            if (rcText.bottom > rc.bottom)
-            {
-                rcText.bottom = rc.bottom;
-                clip = 0;
-            }
-            DrawText(hDC, text, len, &rcText, DT_RIGHT | DT_TOP | clip);
+        const bool bWrap = (GetWindowStyle(hWnd) & WS_HSCROLL) == 0;
 
-            rcText.top += rowHeight;
-            rcText.bottom += rowHeight;
-            if (rcText.top > rc.bottom)
-                break;
+        const HLOCAL hText = Edit_GetHandle(hWnd);
+        _ASSERT(hText);
+        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
+        _ASSERT(lpText);
+
+        const int count = Edit_GetLineCount(hWnd);
+        const int first = Edit_GetFirstVisibleLine(hWnd);
+
+        RECT rcText = rc;
+        int linenum = bWrap ? EditGetActualLine(hWnd, first, lpText) : first;
+        for (int line = first; line < count; ++line)
+        {
+            const int index = Edit_LineIndex(hWnd, line);
+            if (!bWrap || IsStartOfNewLine(lpText, index))
+            {
+                ++linenum;
+
+                const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
+                rcText.top = ptPos.y;
+                if (rcText.top > rc.bottom)
+                    break;
+
+                TCHAR text[100];
+                int len = wsprintf(text, TEXT("%d"), linenum);
+                UINT clip = DT_NOCLIP;
+                if (rcText.bottom > rc.bottom)
+                {
+                    rcText.bottom = rc.bottom;
+                    clip = 0;
+                }
+                DrawText(hDC, text, len, &rcText, DT_RIGHT | DT_TOP | clip);
+            }
         }
+        LocalUnlock(hText);
         ReleaseDC(hWnd, hDC);
         break;
     }
