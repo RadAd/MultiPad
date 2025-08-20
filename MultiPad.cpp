@@ -5,6 +5,7 @@
 #include <shellapi.h>
 #include <tchar.h>
 #include <strsafe.h>
+#include <cctype>
 
 #include "Rad/Dialog.h"
 #include "Rad/Windowxx.h"
@@ -27,7 +28,6 @@
 // Toolbar
 // Monitor for file updates
 // Multi undo
-// Word boundaries  Edit_SetWordBreakProc
 // Save position in registry
 // Choose font
 // Open from url
@@ -38,6 +38,8 @@
 // readonly mode
 // Edit_GetEndOfLine/Edit_SetEndOfLine
 // Edit_SetExtendedStyle
+
+#define __istcsym(c)  (_istalnum(c) || ((c) == TEXT('_')))
 
 namespace stdt
 {
@@ -76,6 +78,44 @@ inline void replaceAll(stdt::string& str, stdt::string_view from, stdt::string_v
     {
         str.replace(start_pos, from.length(), to);
         start_pos = str.find(from, start_pos + to.length());
+    }
+}
+
+inline int WordBreakProc(_In_ LPCTSTR lpch, _In_ int ichCurrent, _In_ const int cch, _In_ const int code)
+{
+    switch (code)
+    {
+    case WB_ISDELIMITER:
+        return !__istcsym(lpch[ichCurrent]) ? TRUE : FALSE;
+    case WB_LEFT:
+        if (ichCurrent > 0)
+            --ichCurrent;
+        if (_istblank(lpch[ichCurrent]))
+        {
+            while (ichCurrent > 0 && _istblank(lpch[ichCurrent - 1]))
+                --ichCurrent;
+        }
+        else if (__istcsym(lpch[ichCurrent]))
+        {
+            while (ichCurrent > 0 && __istcsym(lpch[ichCurrent - 1]))
+                --ichCurrent;
+        }
+        return ichCurrent;
+    case WB_RIGHT:
+        if (_istblank(lpch[ichCurrent]))
+        {
+            while (ichCurrent < cch && _istblank(lpch[ichCurrent]))
+                ++ichCurrent;
+        }
+        else if (__istcsym(lpch[ichCurrent]))
+        {
+            while (ichCurrent < cch && __istcsym(lpch[ichCurrent]))
+                ++ichCurrent;
+        }
+        return ichCurrent;
+    default:
+        _ASSERT(false);
+        return 0;
     }
 }
 
@@ -290,6 +330,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     InitEditEx(m_hWndChild);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
+    Edit_SetWordBreakProc(m_hWndChild, WordBreakProc);
     Edit_LimitText(m_hWndChild, 0);
 
     if (!m_FileName.empty())
@@ -450,6 +491,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             InitEditEx(hNewEdit);
             EditEx_SetStyle(hNewEdit, EditEx_GetStyle(m_hWndChild));
             SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
+            Edit_SetWordBreakProc(hNewEdit, Edit_GetWordBreakProc(m_hWndChild));
             Edit_LimitText(hNewEdit, Edit_GetLimitText(m_hWndChild));
             //Edit_SetMargins(hNewEdit, EC_LEFTMARGIN | EC_RIGHTMARGIN, Edit_GetMargins(m_hWndChild));
             {

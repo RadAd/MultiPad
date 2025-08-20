@@ -81,7 +81,6 @@ inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_
 #define ES_EX_LINENUMBERS       0x00000002
 
 // TODO
-// line numbers
 // bookmarks
 // show unprintable characters
 // tabs/spaces
