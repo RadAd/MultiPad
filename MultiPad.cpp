@@ -90,7 +90,7 @@ inline int WordBreakProc(_In_ LPCTSTR lpch, _In_ int ichCurrent, _In_ const int 
     case WB_LEFT:
         if (ichCurrent > 0)
             --ichCurrent;
-        if (_istblank(lpch[ichCurrent]))
+        if (_istblank(lpch[ichCurrent]))    // TODO Need to take into account substitutued whitespace
         {
             while (ichCurrent > 0 && _istblank(lpch[ichCurrent - 1]))
                 --ichCurrent;
@@ -102,7 +102,7 @@ inline int WordBreakProc(_In_ LPCTSTR lpch, _In_ int ichCurrent, _In_ const int 
         }
         return ichCurrent;
     case WB_RIGHT:
-        if (_istblank(lpch[ichCurrent]))
+        if (_istblank(lpch[ichCurrent]))    // TODO Need to take into account substitutued whitespace
         {
             while (ichCurrent < cch && _istblank(lpch[ichCurrent]))
                 ++ichCurrent;
@@ -314,6 +314,8 @@ private:
     UINT m_cp = CP_ACP;
     LineEndings m_LineEndings = LineEndings::Windows;
 
+    int m_dwTabWidth = 8;
+
     CommandStateChain m_CommandStateChain;
 };
 
@@ -330,6 +332,8 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     InitEditEx(m_hWndChild);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
+    int dwTabWidth = m_dwTabWidth * 4;
+    Edit_SetTabStops(m_hWndChild, 1, &dwTabWidth);
     Edit_SetWordBreakProc(m_hWndChild, WordBreakProc);
     Edit_LimitText(m_hWndChild, 0);
 
@@ -491,6 +495,9 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             InitEditEx(hNewEdit);
             EditEx_SetStyle(hNewEdit, EditEx_GetStyle(m_hWndChild));
             SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
+            // TODO Get tab width
+            int dwTabWidth = m_dwTabWidth * 4;
+            Edit_SetTabStops(m_hWndChild, 1, &dwTabWidth);
             Edit_SetWordBreakProc(hNewEdit, Edit_GetWordBreakProc(m_hWndChild));
             Edit_LimitText(hNewEdit, Edit_GetLimitText(m_hWndChild));
             //Edit_SetMargins(hNewEdit, EC_LEFTMARGIN | EC_RIGHTMARGIN, Edit_GetMargins(m_hWndChild));
@@ -544,6 +551,13 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     {
         DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
         dwExStyle ^= ES_EX_LINENUMBERS;
+        EditEx_SetStyle(m_hWndChild, dwExStyle);
+        break;
+    }
+    case ID_VIEW_USETABS:
+    {
+        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
+        dwExStyle ^= ES_EX_USETABS;
         EditEx_SetStyle(m_hWndChild, dwExStyle);
         break;
     }
@@ -609,7 +623,8 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
     case ID_VIEW_WORDWRAP:          state.checked = (GetWindowStyle(m_hWndChild) & WS_HSCROLL) == 0; break;
     case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
-    case ID_VIEW_LINENUMBERS:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
+    case ID_VIEW_LINENUMBERS:       state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
+    case ID_VIEW_USETABS:           state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_USETABS; break;
     }
 }
 

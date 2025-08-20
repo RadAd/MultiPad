@@ -129,7 +129,8 @@ struct EditExData
 {
     DWORD nPos; // Last mouse position
     DWORD nLineNumberWidth = 0;
-    DWORD dwExStyle = 0;
+    DWORD dwExStyle = ES_EX_USETABS;
+    DWORD nTabSize = 32 / 4;
 };
 
 LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR dwRefData)
@@ -181,9 +182,25 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         break;
     }
     case WM_CHAR:
-        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
-            ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
-        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        if (wParam == VK_TAB && (eexd->dwExStyle & ES_EX_USETABS) == 0)
+        {
+            // TODO Implement shift+Tab
+            DWORD nSelStart, nSelEnd;
+            Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
+            const POINT pos = EditGetPos(hWnd, nSelStart);
+            const int x = eexd->nTabSize - (pos.x - 1) % eexd->nTabSize;
+            TCHAR s[10] = TEXT("         ");
+            _ASSERT(x < ARRAYSIZE(s));
+            s[x] = TEXT('\0');
+            Edit_ReplaceSel(hWnd, s);
+            ret = 0;
+        }
+        else
+        {
+            if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+                ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
+            ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
         break;
     case WM_KEYDOWN:
         if (wParam == VK_UP && (GetKeyState(VK_CONTROL) & 0x8000))
@@ -282,6 +299,13 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     }
+    case EM_SETTABSTOPS:
+        if (wParam == 0)
+            eexd->nTabSize = 32 / 4;
+        else
+            eexd->nTabSize = *((const int*) lParam) / 4;
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        break;
     case WM_SETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)

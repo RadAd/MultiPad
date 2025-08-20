@@ -79,11 +79,11 @@ inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_
 
 #define ES_EX_VIEWWHITESPACE    0x00000001
 #define ES_EX_LINENUMBERS       0x00000002
+#define ES_EX_USETABS           0x00000004
 
 // TODO
 // bookmarks
 // show unprintable characters
-// tabs/spaces
 
 
 inline DWORD EditEx_GetCaret(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETCARET, 0, 0)); }
