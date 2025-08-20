@@ -28,13 +28,22 @@
 #define ID_VIEW_WORDWRAP                40029
 #define ID_VIEW_LINENUMBERS             40030
 #define ID_VIEW_USETABS                 40031
+#define ID_VIEW_TABSIZE                 40032
+#define ID_TABSIZE_1                    40033
+#define ID_TABSIZE_2                    40034
+#define ID_TABSIZE_3                    40035
+#define ID_TABSIZE_4                    40036
+#define ID_TABSIZE_5                    40037
+#define ID_TABSIZE_6                    40038
+#define ID_TABSIZE_7                    40039
+#define ID_TABSIZE_8                    40040
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40032
+#define _APS_NEXT_COMMAND_VALUE         40041
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

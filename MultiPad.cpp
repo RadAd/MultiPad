@@ -314,7 +314,7 @@ private:
     UINT m_cp = CP_ACP;
     LineEndings m_LineEndings = LineEndings::Windows;
 
-    int m_dwTabWidth = 8;
+    int m_dwTabWidth = 4;
 
     CommandStateChain m_CommandStateChain;
 };
@@ -497,7 +497,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
             // TODO Get tab width
             int dwTabWidth = m_dwTabWidth * 4;
-            Edit_SetTabStops(m_hWndChild, 1, &dwTabWidth);
+            Edit_SetTabStops(hNewEdit, 1, &dwTabWidth);
             Edit_SetWordBreakProc(hNewEdit, Edit_GetWordBreakProc(m_hWndChild));
             Edit_LimitText(hNewEdit, Edit_GetLimitText(m_hWndChild));
             //Edit_SetMargins(hNewEdit, EC_LEFTMARGIN | EC_RIGHTMARGIN, Edit_GetMargins(m_hWndChild));
@@ -559,6 +559,14 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
         dwExStyle ^= ES_EX_USETABS;
         EditEx_SetStyle(m_hWndChild, dwExStyle);
+        break;
+    }
+    case ID_TABSIZE_1: case ID_TABSIZE_2: case ID_TABSIZE_3: case ID_TABSIZE_4:
+    case ID_TABSIZE_5: case ID_TABSIZE_6: case ID_TABSIZE_7: case ID_TABSIZE_8:
+    {
+        m_dwTabWidth = id - ID_TABSIZE_1 + 1;
+        int dwTabWidth = m_dwTabWidth * 4;
+        Edit_SetTabStops(m_hWndChild, 1, &dwTabWidth);
         break;
     }
     case ID_EDIT:
@@ -625,6 +633,9 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
     case ID_VIEW_LINENUMBERS:       state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
     case ID_VIEW_USETABS:           state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_USETABS; break;
+    case ID_TABSIZE_1: case ID_TABSIZE_2: case ID_TABSIZE_3: case ID_TABSIZE_4:
+    case ID_TABSIZE_5: case ID_TABSIZE_6: case ID_TABSIZE_7: case ID_TABSIZE_8:
+                                    state.checked = (m_dwTabWidth == (id - ID_TABSIZE_1 + 1)); break;
     }
 }
 
