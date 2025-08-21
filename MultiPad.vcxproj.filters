@@ -93,6 +93,7 @@
     <ClInclude Include="Rad\Unicode.h">
       <Filter>Rad</Filter>
     </ClInclude>
+    <ClInclude Include="RegUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Rad">

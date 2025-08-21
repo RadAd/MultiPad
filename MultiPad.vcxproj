@@ -107,6 +107,7 @@
     <ClInclude Include="Rad\Window.h" />
     <ClInclude Include="Rad\Windowxx.h" />
     <ClInclude Include="Rad\WinError.h" />
+    <ClInclude Include="RegUtils.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ShowMenuShortcutChain.h" />
     <ClInclude Include="WinMainSetup.h" />

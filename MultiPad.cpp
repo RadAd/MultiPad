@@ -21,6 +21,7 @@
 #include "ShowMenuShortcutChain.h"
 #include "EditPlus.h"
 #include "GdiPlus.h"
+#include "RegUtils.h"
 
 // TODO
 // Application icon
@@ -661,6 +662,20 @@ protected:
         CREATESTRUCT cs = ocs;
         cs.hMenu = LoadMenu(cs.hInstance, MAKEINTRESOURCE(IDR_MENU1));
         cs.dwExStyle |= WS_EX_ACCEPTFILES;
+
+        HKEY hKey = NULL;
+        CHECK_HR(RegOpenKeyEx(HKEY_CURRENT_USER, TEXT(R"-(Software\RadSoft\Multipad)-"), 0, KEY_READ, &hKey));
+        if (hKey)
+        {
+            cs.x = RegGetDWORD(hKey, TEXT("x"), cs.x);
+            cs.y = RegGetDWORD(hKey, TEXT("y"), cs.y);
+            cs.cx = RegGetDWORD(hKey, TEXT("cx"), cs.cx);
+            cs.cy = RegGetDWORD(hKey, TEXT("cy"), cs.cy);
+            RegCloseKey(hKey);
+
+            // TODO Validate position
+        }
+
         return MDIFrame::CreateWnd(cs);
     }
 
@@ -822,6 +837,20 @@ void RootWindow::OnClose()
 
 void RootWindow::OnDestroy()
 {
+    RECT rc;
+    CHECK_LE(GetWindowRect(*this, &rc));
+
+    HKEY hKey = NULL;
+    CHECK_HR(RegCreateKeyEx(HKEY_CURRENT_USER, TEXT(R"-(Software\RadSoft\Multipad)-"), 0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr));
+    if (hKey)
+    {
+        RegSetDWORD(hKey, TEXT("x"), rc.left);
+        RegSetDWORD(hKey, TEXT("y"), rc.top);
+        RegSetDWORD(hKey, TEXT("cx"), Width(rc));
+        RegSetDWORD(hKey, TEXT("cy"), Height(rc));
+        RegCloseKey(hKey);
+    }
+
     DeleteObject(m_hFont);
     PostQuitMessage(0);
 }
