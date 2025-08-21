@@ -217,6 +217,11 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             NotifyParent(hWnd, EN_SEL_CHANGED);
         }
         break;
+    case WM_CUT:
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        // TODO Unsure why but WM_CUT not longer deletes the selection
+        Edit_ReplaceSelEx(hWnd, TEXT(""), TRUE);
+        break;
     case WM_COPY:
     {
         DWORD nSelStart, nSelEnd;

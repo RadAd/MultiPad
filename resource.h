@@ -37,13 +37,19 @@
 #define ID_TABSIZE_6                    40038
 #define ID_TABSIZE_7                    40039
 #define ID_TABSIZE_8                    40040
+#define ID_EDIT_UNDO                    40041
+#define ID_EDIT_REDO                    40042
+#define ID_EDIT_SELECTALL               40043
+#define ID_EDIT_CUT                     40044
+#define ID_EDIT_COPY                    40045
+#define ID_EDIT_PASTE                   40046
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40041
+#define _APS_NEXT_COMMAND_VALUE         40049
 #define _APS_NEXT_CONTROL_VALUE         1001
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

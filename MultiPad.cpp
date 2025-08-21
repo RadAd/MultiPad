@@ -486,6 +486,28 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         m_LineEndings = LineEndings::Macintosh;
         SetModified();
         break;
+    case ID_EDIT_UNDO:
+        if (Edit_CanUndo(m_hWndChild))
+            Edit_Undo(m_hWndChild);
+        break;
+    case ID_EDIT_REDO:
+#if 0   // TODO
+        if (Edit_CanRedo(m_hWndChild))
+            Edit_Redo(m_hWndChild);
+#endif
+        break;
+    case ID_EDIT_CUT:
+        SendMessage(m_hWndChild, WM_CUT, 0, 0);
+        break;
+    case ID_EDIT_COPY:
+        SendMessage(m_hWndChild, WM_COPY, 0, 0);
+        break;
+    case ID_EDIT_PASTE:
+        SendMessage(m_hWndChild, WM_PASTE, 0, 0);
+        break;
+    case ID_EDIT_SELECTALL:
+        Edit_SetSel(m_hWndChild, 0, Edit_GetTextLength(m_hWndChild));
+        break;
     case ID_VIEW_WORDWRAP:
     {
         DWORD dwStyle = GetWindowStyle(m_hWndChild);
@@ -629,7 +651,23 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_ENCODING_UTF16_LE:      state.checked = m_cp == CP_UTF16_LE; break;
     case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
     case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
-    case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh;break;
+    case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh; break;
+    case ID_EDIT_UNDO:              state.enabled = Edit_CanUndo(m_hWndChild); break;
+    case ID_EDIT_REDO:              state.enabled = false; break; // TODO Edit_CanRedo(m_hWndChild); break;
+    case ID_EDIT_CUT:
+    case ID_EDIT_COPY:
+    {
+        DWORD nSelStart, nSelEnd;
+        Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
+        state.enabled = nSelStart != nSelEnd;
+        break;
+    }
+#ifdef _UNICODE
+    case ID_EDIT_PASTE:             state.enabled = IsClipboardFormatAvailable(CF_UNICODETEXT); break;
+#else
+    case ID_EDIT_PASTE:             state.enabled = IsClipboardFormatAvailable(CF_TEXT); break;
+#endif
+    case ID_EDIT_SELECTALL:         state.enabled = Edit_GetTextLength(m_hWndChild); break;
     case ID_VIEW_WORDWRAP:          state.checked = (GetWindowStyle(m_hWndChild) & WS_HSCROLL) == 0; break;
     case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
     case ID_VIEW_LINENUMBERS:       state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
