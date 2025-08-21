@@ -688,10 +688,40 @@ public:
 
     void OpenFile(LPCTSTR filename, DWORD cp = CP_ACP)
     {
-        BOOL bMaximized = FALSE;
-        if (GetActiveChild(&bMaximized) == NULL)
-            bMaximized = TRUE;
-        /*TextDocWindow* pWnd =*/ CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, filename, cp, bMaximized }));
+        struct FindFilename
+        {
+            LPCTSTR filename;
+            TextDocWindow* pFound;
+        };
+        FindFilename ff = { filename, NULL };
+        if (filename)
+        {
+            EnumChildWindows(GetMDIClient(), [](HWND hWnd, LPARAM lParam) -> BOOL
+                {
+                    FindFilename& ff = *(FindFilename*) lParam;
+                    MessageHandler* pmh = MessageHandler::GetFrom(hWnd);
+                    TextDocWindow* pDoc = dynamic_cast<TextDocWindow*>(pmh);
+                    if (pDoc && pDoc->GetFileName() == ff.filename)
+                    {
+                        ff.pFound = pDoc;
+                        return FALSE; // Stop enumeration
+                    }
+                    else
+                        return TRUE; // Continue enumeration
+                }, (LPARAM) &ff);
+        }
+
+        if (ff.pFound)
+        {
+            SendMessage(GetMDIClient(), WM_MDIACTIVATE, (WPARAM) HWND(*ff.pFound), 0);
+        }
+        else
+        {
+            BOOL bMaximized = FALSE;
+            if (GetActiveChild(&bMaximized) == NULL)
+                bMaximized = TRUE;
+            /*TextDocWindow* pWnd =*/ CHECK_LE(TextDocWindow::Create(GetMDIClient(), { m_hFont, m_hStatusBar, filename, cp, bMaximized }));
+        }
     }
 
 protected:
