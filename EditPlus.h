@@ -4,8 +4,6 @@
 #include <CommCtrl.h>
 #include <crtdbg.h>
 
-// TODO Use Edit_GetFile* instead of actual line
-
 //#define MAKEPOINT(l)       (*((LPPOINT)&(l)))
 inline POINT MAKEPOINT(DWORD l)
 {
@@ -40,11 +38,6 @@ inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((
 inline POINT Edit_GetPosFromChar(HWND hwndCtl, UINT nChar) { return MAKEPOINT((DWORD) SNDMSG((hwndCtl), EM_POSFROMCHAR, (WPARAM) (nChar), 0)); }
 inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_GETLIMITTEXT, 0, 0)); }
 
-inline bool IsStartOfNewLine(LPCTSTR lpText, int index)
-{
-    return index == 0 || lpText[index - 1] == TEXT('\r') || lpText[index - 1] == TEXT('\n');
-}
-
 inline void Edit_ReplaceLineEndings(HWND hWnd)
 {
     const LPCTSTR sEol[4] = { TEXT(""), TEXT("\r\n"), TEXT("\n"), TEXT("\r") };
@@ -57,30 +50,31 @@ inline void Edit_ReplaceLineEndings(HWND hWnd)
     SetWindowRedraw(hWnd, FALSE);
     const HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-    const int count = Edit_GetLineCount(hWnd);
-    for (int i = 0; i < count - 1; ++i)
+    const DWORD count = Edit_GetFileLineCount(hWnd);
+    for (DWORD i = 0; i < count - 1; ++i)
     {
-        _ASSERT(count == Edit_GetLineCount(hWnd));
+        _ASSERT(count == Edit_GetFileLineCount(hWnd));
         HANDLE hText = Edit_GetHandle(hWnd);
         _ASSERT(hText);
         LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
         _ASSERT(lpText);
 
-        const DWORD nextindex = Edit_LineIndex(hWnd, i + 1);
-        if (IsStartOfNewLine(lpText, nextindex))
+        const DWORD index = Edit_GetFileLineIndex(hWnd, i);
+        const DWORD length = Edit_GetFileLineLength(hWnd, index);
+        const DWORD nextindex = Edit_GetFileLineIndex(hWnd, i + 1);
+
+        const DWORD begin = index + length;
+        if ((nextindex - begin) != len || memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
         {
             LocalUnlock(hText);
 
-            const DWORD begin = nextindex - (lpText[nextindex - 2] == TEXT('\r') ? 2 : 1);
-            if ((nextindex - begin) != len || memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
-            {
-                Edit_SetSel(hWnd, begin, nextindex);
-                Edit_ReplaceSelEx(hWnd, sEol[eol], TRUE);
-                if (begin < nSelStart)
-                    nSelStart += len - (int)(nextindex - begin);
-                if (begin < nSelEnd)
-                    nSelEnd += len - (int) (nextindex - begin);
-            }
+            Edit_SetSel(hWnd, begin, nextindex);
+            // TODO What if we send a VK_RETURN in a WM_CHAR?
+            Edit_ReplaceSelEx(hWnd, sEol[eol], TRUE);
+            if (begin < nSelStart)
+                nSelStart += len - (int) (nextindex - begin);
+            if (begin < nSelEnd)
+                nSelEnd += len - (int) (nextindex - begin);
         }
         else
             LocalUnlock(hText);
@@ -91,48 +85,19 @@ inline void Edit_ReplaceLineEndings(HWND hWnd)
     SetWindowRedraw(hWnd, TRUE);
 }
 
-inline int EditGetActualLine(HWND hWnd, int line, LPCTSTR lpText)
-{
-    int actualline = 0;
-    for (int i = 0; i < line; ++i)
-    {
-        const int index = Edit_LineIndex(hWnd, i);
-        if (IsStartOfNewLine(lpText, index))
-            ++actualline;
-    }
-    return actualline;
-}
-
 inline POINT EditGetPos(HWND hWnd, const DWORD dwCaret)
 {
-    const bool bWrap = (GetWindowStyle(hWnd) & WS_HSCROLL) == 0;
-    if (bWrap)
-    {
-        const HLOCAL hText = Edit_GetHandle(hWnd);
-        _ASSERT(hText);
-        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
-        _ASSERT(lpText);
+    const int nLine = Edit_GetFileLineFromChar(hWnd, dwCaret);
+    const int nLineIndex = Edit_GetFileLineIndex(hWnd, nLine);
 
-        const int nLine = Edit_LineFromChar(hWnd, dwCaret);
+    return { (LONG) (dwCaret - nLineIndex + 1), (LONG) (nLine + 1) };
+}
 
-        int nLineBegin = nLine;
-        while (!IsStartOfNewLine(lpText, Edit_LineIndex(hWnd, nLineBegin)))
-            --nLineBegin;
-
-        const int nActualLine = EditGetActualLine(hWnd, nLineBegin, lpText);
-        const int nLineIndex = Edit_LineIndex(hWnd, nLineBegin);
-
-        LocalUnlock(hText);
-
-        return { (LONG) (dwCaret - nLineIndex + 1), (LONG) (nActualLine + 1) };
-    }
-    else
-    {
-        const int nLine = Edit_LineFromChar(hWnd, dwCaret);
-        const int nLineIndex = Edit_LineIndex(hWnd, nLine);
-
-        return { (LONG) (dwCaret - nLineIndex + 1), (LONG) (nLine + 1) };
-    }
+inline DWORD EditGetFirstVisibleFileLine(HWND hWnd)
+{
+    const int first = Edit_GetFirstVisibleLine(hWnd);
+    const int index = Edit_LineIndex(hWnd, first);
+    return Edit_GetFileLineFromChar(hWnd, index);
 }
 
 void InitEditEx(HWND hWnd);
@@ -158,7 +123,7 @@ void InitEditEx(HWND hWnd);
 // bookmarks
 // show unprintable characters
 
-// Edit_GetCaretIndex 
+// TODO Replace EditEx_GetCaret with Edit_GetCaretIndex 
 inline DWORD EditEx_GetCaret(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETCARET, 0, 0)); }
 inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
 inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }

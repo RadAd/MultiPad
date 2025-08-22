@@ -1,4 +1,5 @@
 #include "EditPlus.h"
+#include <strsafe.h>
 
 #ifndef _DEBUG
 #define _VERIFY(x) (x)
@@ -353,78 +354,94 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     {
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
 
-        const HDC hDC = GetDC(hWnd);
-        SelectFont(hDC, GetWindowFont(hWnd));
+        if (eexd->nLineNumberWidth < 0 && eexd->nTrailingWhitespaceWidth < 0)
+            break;
 
         RECT rcClient = {};
-        GetClientRect(hWnd, &rcClient);
-        RECT rc = rcClient;
-        rc.right = rc.left + eexd->nLineNumberWidth;
+        _VERIFY(GetClientRect(hWnd, &rcClient));
 
-        const COLORREF color = GetSysColor(COLOR_MENU);
-        const COLORREF colorWSEOL = RGB(255, 0, 0);
-        // TODO Use WM_CTLCOLORGUTTER
-        SetBkColor(hDC, color);
-        SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
-        SelectPen(hDC, GetStockObject(DC_PEN));
-        SelectBrush(hDC, GetStockObject(DC_BRUSH));
+        const DWORD count = Edit_GetFileLineCount(hWnd);
+        const DWORD first = EditGetFirstVisibleFileLine(hWnd);
 
-        Rectangle(hDC, rc.left, rc.top, rc.right, rc.bottom);
+        const HDC hDC = GetDC(hWnd);
 
-        const bool bWrap = (GetWindowStyle(hWnd) & WS_HSCROLL) == 0;
-
-        const HLOCAL hText = Edit_GetHandle(hWnd);
-        _ASSERT(hText);
-        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
-        _ASSERT(lpText);
-
-        const int count = Edit_GetLineCount(hWnd);
-        const int first = Edit_GetFirstVisibleLine(hWnd);
-
-        RECT rcText = rc;
-        int linenum = bWrap ? EditGetActualLine(hWnd, first, lpText) : first;
-        for (int line = first; line < count; ++line)
+        if (eexd->nLineNumberWidth > 0)
         {
-            const int index = Edit_LineIndex(hWnd, line);
-            const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
-            rcText.top = ptPos.y;
-            if (rcText.top > rc.bottom)
-                break;
+            SelectFont(hDC, GetWindowFont(hWnd));
 
-            if (!bWrap || IsStartOfNewLine(lpText, index))
+            RECT rc = rcClient;
+            rc.right = rc.left + eexd->nLineNumberWidth;
+
+            const COLORREF color = GetSysColor(COLOR_MENU);
+            const HBRUSH hBrush = GetStockBrush(DC_BRUSH);
+            // TODO Use WM_CTLCOLORGUTTER
+            SetBkColor(hDC, color);
+            SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
+            SelectBrush(hDC, hBrush);
+            SetDCBrushColor(hDC, color);
+
+            FillRect(hDC, &rc, GetStockBrush(DC_BRUSH));
+
+            RECT rcText = rc;
+            for (DWORD line = first; line < count; ++line)
             {
-                ++linenum;
+                const DWORD index = Edit_GetFileLineIndex(hWnd, line);
+                const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
+                rcText.top = ptPos.y;
+                if (rcText.top >= rc.bottom)
+                    break;
+
+                const DWORD indexnext = Edit_GetFileLineIndex(hWnd, line + 1);
+                const POINT ptPosNext = Edit_GetPosFromChar(hWnd, indexnext);
+                // TODO How to find bottom of last line?
+                rcText.bottom = ptPosNext.y;
 
                 TCHAR text[100];
-                int len = wsprintf(text, TEXT("%d"), linenum);
+                LPTSTR pEnd = nullptr;
+                _VERIFY(SUCCEEDED(StringCchPrintfEx(text, ARRAYSIZE(text), &pEnd, nullptr, 0, TEXT("%d"), line + 1)));
+                const int len = static_cast<int>(pEnd - text);
+
                 UINT clip = DT_NOCLIP;
                 if (rcText.bottom > rc.bottom)
                 {
                     rcText.bottom = rc.bottom;
                     clip = 0;
                 }
-                SetDCPenColor(hDC, color);
-                SetDCBrushColor(hDC, color);
+
                 DrawText(hDC, text, len, &rcText, DT_RIGHT | DT_TOP | clip);
             }
+        }
+
+        if (eexd->nTrailingWhitespaceWidth > 0)
+        {
+            const HLOCAL hText = Edit_GetHandle(hWnd);
+            _ASSERT(hText);
+            LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
+            _ASSERT(lpText);
+
+            // TODO Use WM_CTLCOLORGUTTER
+            const COLORREF colorWSEOL = RGB(255, 0, 0);
+            const HBRUSH hBrush = GetStockBrush(DC_BRUSH);
+            SetDCBrushColor(hDC, colorWSEOL);
+
+            for (DWORD line = first; line < count; ++line)
             {
-                const int indexnext = Edit_LineIndex(hWnd, line + 1);
-                int end = indexnext >= 0 ? indexnext - 1 : Edit_GetTextLength(hWnd) - 1;
-                if (end > index && lpText[end] == TEXT('\n'))
-                    --end;
-                if (end > index && lpText[end] == TEXT('\r'))
-                    --end;
-                if (end > index && (lpText[end] == TEXT(' ') || lpText[end] == TEXT('\t')))
+                const DWORD index = Edit_GetFileLineIndex(hWnd, line);
+                const int length = Edit_GetFileLineLength(hWnd, index);
+                if (length > 0 && lpText[index + length - 1] == TEXT(' ') || lpText[index + length - 1] == TEXT('\t'))
                 {
+                    const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
+                    const DWORD indexnext = Edit_GetFileLineIndex(hWnd, line + 1);
                     const POINT ptPosNext = Edit_GetPosFromChar(hWnd, indexnext);
-                    // TODO if indexnext is < 0 then need a better way to find line height
-                    SetDCPenColor(hDC, colorWSEOL);
-                    SetDCBrushColor(hDC, colorWSEOL);
-                    Rectangle(hDC, rcClient.right - eexd->nTrailingWhitespaceWidth, rcText.top, rcClient.right, ptPosNext.y);
+
+                    const RECT rc = { rcClient.right - (LONG) eexd->nTrailingWhitespaceWidth, ptPos.y, rcClient.right, ptPosNext.y };
+                    _VERIFY(FillRect(hDC, &rc, hBrush));
                 }
             }
+
+            LocalUnlock(hText);
         }
-        LocalUnlock(hText);
+
         ReleaseDC(hWnd, hDC);
         break;
     }
