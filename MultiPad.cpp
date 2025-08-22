@@ -38,7 +38,6 @@
 // split view
 // readonly mode
 // ES_EX_CONVERT_EOL_ON_PASTE
-// Show EOL type on status bar
 // Use right gutter to show mismatched EOL and whitespace at end of line
 
 #define __istcsym(c)  (_istalnum(c) || ((c) == TEXT('_')))
@@ -65,6 +64,9 @@ inline void StatusBar_SetText(HWND hWndStatusBar, int part, stdt::string_view te
 {
     SendMessage(hWndStatusBar, SB_SETTEXT, MAKEWORD(part, 0), (LPARAM) text.data());
 }
+
+#define STATUS_EOL 1
+#define STATUS_POS 2
 
 inline stdt::string_view right(stdt::string_view sv, size_t len)
 {
@@ -289,14 +291,21 @@ private:
 
     void GetState(UINT id, State& state) const;
 
-    void SetStatusBarText()
+    void SetStatusBarEolText()
+    {
+        const LPCTSTR sEol[4] = { TEXT("?"), TEXT("CRLF"), TEXT("LF"), TEXT("CR") };
+        const EC_ENDOFLINE eol = Edit_GetEndOfLine(m_hWndChild);
+        StatusBar_SetText(m_hStatusBar, STATUS_EOL, sEol[eol]);
+    }
+
+    void SetStatusBarPosText()
     {
         const DWORD nCaretPos = EditEx_GetCaret(m_hWndChild);
         DWORD nSelStart, nSelEnd;
         Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
         _ASSERT(nCaretPos == nSelStart || nCaretPos == nSelEnd);
         const POINT editpos = EditGetPos(m_hWndChild, nCaretPos);
-        StatusBar_SetText(m_hStatusBar, 1, nSelEnd == nSelStart
+        StatusBar_SetText(m_hStatusBar, STATUS_POS, nSelEnd == nSelStart
             ? Format(TEXT("Ln %d, Col %d"), editpos.y, editpos.x)
             : Format(TEXT("Ln %d, Col %d, Sel %d"), editpos.y, editpos.x, nSelEnd - nSelStart));
     }
@@ -405,6 +414,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                 Edit_ReplaceLineEndings(m_hWndChild);
             }
         }
+        SetStatusBarEolText();
     }
     Edit_SetModify(m_hWndChild, false);
     SetTitle();
@@ -472,14 +482,17 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     case ID_LINEENDINGS_WINDOWS:
         Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CRLF);
         Edit_ReplaceLineEndings(m_hWndChild);
+        SetStatusBarEolText();
         break;
     case ID_LINEENDINGS_UNIX:
         Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CR);
         Edit_ReplaceLineEndings(m_hWndChild);
+        SetStatusBarEolText();
         break;
     case ID_LINEENDINGS_MACINTOSH:
         Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_LF);
         Edit_ReplaceLineEndings(m_hWndChild);
+        SetStatusBarEolText();
         break;
     case ID_EDIT_UNDO:
         if (Edit_CanUndo(m_hWndChild))
@@ -564,7 +577,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             DestroyWindow(m_hWndChild);
             m_hWndChild = hNewEdit;
             SetFocus(m_hWndChild);
-            SetStatusBarText();
+            SetStatusBarPosText();
         }
         break;
     }
@@ -605,7 +618,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             SetTitle();
             break;
         case EN_SEL_CHANGED:
-            SetStatusBarText();
+            SetStatusBarPosText();
             break;
         case EN_ERRSPACE:
             MessageBox(*this, TEXT("Not enough memory to complete the operation."), g_ProjectTitle, MB_ICONERROR | MB_OK);
@@ -638,11 +651,16 @@ void TextDocWindow::OnMDIActivate(HWND hWndActivate, HWND hWndDeactivate)
 {
     if (hWndActivate == *this)
     {
-        SetStatusBarText();
+        SetStatusBarEolText();
+        SetStatusBarPosText();
         SendMessage(GetParent(GetParent(*this)), WM_PARENTNOTIFY, WM_MDIACTIVATE, (LPARAM) HWND(*this));
     }
     else if (hWndActivate == NULL)
-        StatusBar_SetText(m_hStatusBar, 1, TEXT(""));
+    {
+        const DWORD nParts = (DWORD) SendMessage(m_hStatusBar, SB_GETPARTS, 0, 0);
+        for (DWORD i = 1; i < nParts; ++i)
+            StatusBar_SetText(m_hStatusBar, i, TEXT(""));
+    }
 }
 
 void TextDocWindow::GetState(UINT id, State& state) const
@@ -950,7 +968,7 @@ void RootWindow::OnSize(UINT state, int cx, int cy)
 
     if (m_hStatusBar)
     {
-        const int partsizes[] = { 200 };
+        const int partsizes[] = { 50, 150 };
         {
             std::vector<int> parts(ARRAYSIZE(partsizes) + 1);
             parts[ARRAYSIZE(partsizes)] = -1; // Right edge
