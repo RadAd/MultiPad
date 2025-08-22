@@ -547,6 +547,14 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
 #endif
             Edit_SetModify(hNewEdit, Edit_GetModify(m_hWndChild));
             Edit_SetSel(hNewEdit, dwSelStart, dwSelEnd);
+            Edit_ScrollCaret(hNewEdit); // TODO Remove when copy scroll pos
+
+#if 0
+            const int nFirst = Edit_GetFirstVisibleLine(hNewEdit);
+            // Get actual first line number
+            // TODO How to reconcile that word wrap mode shows less actual lines than non-word wrap mode?
+            Edit_Scroll(hNewEdit, nFirst, 0);
+#endif
 
             // TODO copy caret position, scroll position, margins, password char, readonly, tabstops, word break, undo buffer, etc.
 
@@ -560,6 +568,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             DestroyWindow(m_hWndChild);
             m_hWndChild = hNewEdit;
             SetFocus(m_hWndChild);
+            SetStatusBarText();
         }
         break;
     }

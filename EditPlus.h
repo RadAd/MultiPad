@@ -28,13 +28,6 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
     return hWnd;
 }
 
-inline POINT EditGetPos(HWND hWnd, const DWORD dwCaret)
-{
-    const DWORD dwLine = Edit_LineFromChar(hWnd, dwCaret);
-    const DWORD dwLineIndex = Edit_LineIndex(hWnd, dwLine);
-    return { (LONG) (dwCaret - dwLineIndex + 1), (LONG) (dwLine + 1) };
-}
-
 inline bool IsStartOfNewLine(LPCTSTR lpText, int index)
 {
     return index == 0 || lpText[index - 1] == TEXT('\n');
@@ -50,6 +43,38 @@ inline int EditGetActualLine(HWND hWnd, int line, LPCTSTR lpText)
             ++actualline;
     }
     return actualline;
+}
+
+inline POINT EditGetPos(HWND hWnd, const DWORD dwCaret)
+{
+    const bool bWrap = (GetWindowStyle(hWnd) & WS_HSCROLL) == 0;
+    if (bWrap)
+    {
+        const HLOCAL hText = Edit_GetHandle(hWnd);
+        _ASSERT(hText);
+        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
+        _ASSERT(lpText);
+
+        const int nLine = Edit_LineFromChar(hWnd, dwCaret);
+
+        int nLineBegin = nLine;
+        while (!IsStartOfNewLine(lpText, Edit_LineIndex(hWnd, nLineBegin)))
+            --nLineBegin;
+
+        const int nActualLine = EditGetActualLine(hWnd, nLineBegin, lpText);
+        const int nLineIndex = Edit_LineIndex(hWnd, nLineBegin);
+
+        LocalUnlock(hText);
+
+        return { (LONG) (dwCaret - nLineIndex + 1), (LONG) (nActualLine + 1) };
+    }
+    else
+    {
+        const int nLine = Edit_LineFromChar(hWnd, dwCaret);
+        const int nLineIndex = Edit_LineIndex(hWnd, nLine);
+
+        return { (LONG) (dwCaret - nLineIndex + 1), (LONG) (nLine + 1) };
+    }
 }
 
 void InitEditEx(HWND hWnd);
