@@ -9,57 +9,6 @@
 
 namespace
 {
-    inline LONG Width(const RECT r)
-    {
-        return r.right - r.left;
-    }
-
-    inline LONG Height(const RECT r)
-    {
-        return r.bottom - r.top;
-    }
-
-    struct EditData
-    {
-        HLOCAL hText;
-        DWORD nUnknown1;
-        DWORD nLimitText;
-        BYTE b[5];
-        DWORD nSelStart;
-        DWORD nSelEnd;
-        DWORD nCursor;
-        BYTE c[156];
-        HFONT hFont; // 192
-    };
-
-    inline const EditData* EditGetData(HWND hEdit)
-    {
-        return reinterpret_cast<EditData*>(GetWindowLongPtr(hEdit, 0));
-    }
-
-    inline DWORD EditGetCaret(HWND hEdit)
-    {
-#if 0
-        // NOTE There is no message to get the cursor position
-        // This works by unselecting the reselecting
-        SetWindowRedraw(hEdit, FALSE);
-        DWORD nSelStart, nSelEnd;
-        Edit_GetSelEx(hEdit, &nSelStart, &nSelEnd);
-        Edit_SetSel(hEdit, (DWORD) -1, (DWORD) -1);
-        DWORD nCursor;
-        EditGetSel(hEdit, &nCursor, nullptr);
-        if (nCursor == nSelStart)
-            Edit_SetSel(hEdit, nSelEnd, nSelStart);
-        else
-            Edit_SetSel(hEdit, nSelStart, nSelEnd);
-        SetWindowRedraw(hEdit, TRUE);
-        return nCursor;
-#else
-        const EditData* edp = EditGetData(hEdit);
-        return edp->nCursor;
-#endif
-    }
-
     inline void NotifyParent(HWND hWnd, int code)
     {
         const HWND hWndParent = GetParent(hWnd);
@@ -143,9 +92,6 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
     switch (uMsg)
     {
-    case EM_EX_GETCARET:
-        ret = EditGetCaret(hWnd);
-        break;
     case EM_EX_GETSTYLE:
         ret = eexd->dwExStyle;
         break;
@@ -305,7 +251,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             _ASSERT(lpText);
             if (lpText)
             {
-                const DWORD nCaretPos = EditGetCaret(hWnd);
+                const DWORD nCaretPos = Edit_GetCaretIndex(hWnd);
                 ModifyWhiteSpace(lpText + dwSelStart, nCaretPos - dwSelStart, true);
                 GlobalUnlock(hText);
             }

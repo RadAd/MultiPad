@@ -300,7 +300,7 @@ private:
 
     void SetStatusBarPosText()
     {
-        const DWORD nCaretPos = EditEx_GetCaret(m_hWndChild);
+        const DWORD nCaretPos = Edit_GetCaretIndex(m_hWndChild);
         DWORD nSelStart, nSelEnd;
         Edit_GetSelEx(m_hWndChild, &nSelStart, &nSelEnd);
         _ASSERT(nCaretPos == nSelStart || nCaretPos == nSelEnd);

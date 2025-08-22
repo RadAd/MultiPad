@@ -104,8 +104,6 @@ void InitEditEx(HWND hWnd);
 
 // Edit Plus Messages
 
-#define EM_EX_GETCARET      0x00F0
-//#define EM_EX_SETCARET    0x00F1
 #define EM_EX_GETSTYLE      0x00F2
 #define EM_EX_SETSTYLE      0x00F3
 
@@ -123,7 +121,5 @@ void InitEditEx(HWND hWnd);
 // bookmarks
 // show unprintable characters
 
-// TODO Replace EditEx_GetCaret with Edit_GetCaretIndex 
-inline DWORD EditEx_GetCaret(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETCARET, 0, 0)); }
 inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
 inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }
