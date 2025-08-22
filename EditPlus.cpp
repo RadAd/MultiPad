@@ -129,6 +129,7 @@ struct EditExData
 {
     DWORD nPos; // Last mouse position
     DWORD nLineNumberWidth = 0;
+    DWORD nTrailingWhitespaceWidth = 2;
     DWORD dwExStyle = ES_EX_USETABS;
     DWORD nTabSize = 32 / 4;
 };
@@ -200,6 +201,13 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
                 ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
             ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        }
+        {
+            // TODO Could be more efficient - only invalidate the line where the caret is and only if editing the end of the line
+            RECT rc = {};
+            GetClientRect(hWnd, &rc);
+            rc.left = rc.right - eexd->nTrailingWhitespaceWidth;
+            _VERIFY(InvalidateRect(hWnd, &rc, TRUE));
         }
         break;
     case WM_KEYDOWN:
@@ -348,16 +356,16 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         const HDC hDC = GetDC(hWnd);
         SelectFont(hDC, GetWindowFont(hWnd));
 
-        RECT rc = {};
-        GetClientRect(hWnd, &rc);
+        RECT rcClient = {};
+        GetClientRect(hWnd, &rcClient);
+        RECT rc = rcClient;
         rc.right = rc.left + eexd->nLineNumberWidth;
 
         const COLORREF color = GetSysColor(COLOR_MENU);
+        const COLORREF colorWSEOL = RGB(255, 0, 0);
         // TODO Use WM_CTLCOLORGUTTER
         SetBkColor(hDC, color);
         SetTextColor(hDC, GetSysColor(COLOR_MENUTEXT));
-        SetDCPenColor(hDC, color);
-        SetDCBrushColor(hDC, color);
         SelectPen(hDC, GetStockObject(DC_PEN));
         SelectBrush(hDC, GetStockObject(DC_BRUSH));
 
@@ -378,14 +386,14 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         for (int line = first; line < count; ++line)
         {
             const int index = Edit_LineIndex(hWnd, line);
+            const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
+            rcText.top = ptPos.y;
+            if (rcText.top > rc.bottom)
+                break;
+
             if (!bWrap || IsStartOfNewLine(lpText, index))
             {
                 ++linenum;
-
-                const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
-                rcText.top = ptPos.y;
-                if (rcText.top > rc.bottom)
-                    break;
 
                 TCHAR text[100];
                 int len = wsprintf(text, TEXT("%d"), linenum);
@@ -395,7 +403,25 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
                     rcText.bottom = rc.bottom;
                     clip = 0;
                 }
+                SetDCPenColor(hDC, color);
+                SetDCBrushColor(hDC, color);
                 DrawText(hDC, text, len, &rcText, DT_RIGHT | DT_TOP | clip);
+            }
+            {
+                const int indexnext = Edit_LineIndex(hWnd, line + 1);
+                int end = indexnext >= 0 ? indexnext - 1 : Edit_GetTextLength(hWnd) - 1;
+                if (end > index && lpText[end] == TEXT('\n'))
+                    --end;
+                if (end > index && lpText[end] == TEXT('\r'))
+                    --end;
+                if (end > index && (lpText[end] == TEXT(' ') || lpText[end] == TEXT('\t')))
+                {
+                    const POINT ptPosNext = Edit_GetPosFromChar(hWnd, indexnext);
+                    // TODO if indexnext is < 0 then need a better way to find line height
+                    SetDCPenColor(hDC, colorWSEOL);
+                    SetDCBrushColor(hDC, colorWSEOL);
+                    Rectangle(hDC, rcClient.right - eexd->nTrailingWhitespaceWidth, rcText.top, rcClient.right, ptPosNext.y);
+                }
             }
         }
         LocalUnlock(hText);
@@ -410,6 +436,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         RECT rc;
         Edit_GetRect(hWnd, &rc);
         rc.left += eexd->nLineNumberWidth;
+        rc.left -= eexd->nTrailingWhitespaceWidth;
         Edit_SetRect(hWnd, &rc);
         break;
     }

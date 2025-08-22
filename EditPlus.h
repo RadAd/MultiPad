@@ -4,6 +4,8 @@
 #include <CommCtrl.h>
 #include <crtdbg.h>
 
+// TODO Use Edit_GetFile* instead of actual line
+
 //#define MAKEPOINT(l)       (*((LPPOINT)&(l)))
 inline POINT MAKEPOINT(DWORD l)
 {
@@ -156,7 +158,7 @@ void InitEditEx(HWND hWnd);
 // bookmarks
 // show unprintable characters
 
-
+// Edit_GetCaretIndex 
 inline DWORD EditEx_GetCaret(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETCARET, 0, 0)); }
 inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
 inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }
