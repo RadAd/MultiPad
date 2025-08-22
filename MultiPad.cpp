@@ -37,8 +37,9 @@
 // tab mode
 // split view
 // readonly mode
-// Edit_GetEndOfLine/Edit_SetEndOfLine
-// Edit_SetExtendedStyle
+// ES_EX_CONVERT_EOL_ON_PASTE
+// Show EOL type on status bar
+// Use right gutter to show mismatched EOL and whitespace at end of line
 
 #define __istcsym(c)  (_istalnum(c) || ((c) == TEXT('_')))
 
@@ -262,12 +263,6 @@ public:
                 c -= 0x2410;
         }
 
-        switch (m_LineEndings)
-        {
-        case LineEndings::Unix:         replaceAll(text, TEXT("\r\n"), TEXT("\n")); break;
-        case LineEndings::Macintosh:    replaceAll(text, TEXT("\r\n"), TEXT("\r")); break;
-        }
-
 #ifdef UNICODE
         const UINT cp = CP_UTF16_LE;
 #else
@@ -311,9 +306,7 @@ private:
     stdt::string m_FileName;
     HWND m_hWndChild = NULL;
 
-    enum class LineEndings { Windows, Unix, Macintosh };
     UINT m_cp = CP_ACP;
-    LineEndings m_LineEndings = LineEndings::Windows;
 
     int m_dwTabWidth = 4;
 
@@ -332,6 +325,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 
     m_hWndChild = Edit_Create(*this, WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_HSCROLL | ES_MULTILINE, RECT(), ID_EDIT);
     InitEditEx(m_hWndChild);
+    Edit_SetExtendedStyle(m_hWndChild, ES_EX_ALLOWEOL_ALL, ES_EX_ALLOWEOL_ALL);
     SetWindowFont(m_hWndChild, m_hFont, TRUE);
     int dwTabWidth = m_dwTabWidth * 4;
     Edit_SetTabStops(m_hWndChild, 1, &dwTabWidth);
@@ -345,11 +339,9 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 #else
         const UINT cp = CP_ACP;
 #endif
+        int LineEnding[4] = { 0, 0, 0, 0, };
         stdt::string fullfile;
         {
-            int windowsle = 0;
-            int linuxle = 0;
-            int macosle = 0;
 
             stdt::string line;
             RadITextFile itf(m_FileName.c_str(), m_cp);
@@ -357,15 +349,15 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
             while (itf.ReadLine(line, cp))
             {
                 if (right(line, 2) == TEXT("\r\n"))
-                    ++windowsle;
+                    ++LineEnding[EC_ENDOFLINE_CRLF];
                 else if (right(line, 1) == TEXT("\n"))
                 {
-                    ++linuxle;
+                    ++LineEnding[EC_ENDOFLINE_CR];
                     line.insert(line.size() - 1, 1, TEXT('\r'));
                 }
                 else if (right(line, 1) == TEXT("\r"))
                 {
-                    ++macosle;
+                    ++LineEnding[EC_ENDOFLINE_LF];
                     line.insert(line.size(), 1, TEXT('\n'));
                 }
                 for (TCHAR& c : line)
@@ -396,20 +388,23 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
             }
 
             m_cp = itf.GetCodePage();
-            if ((windowsle != 0 && linuxle != 0) || (windowsle != 0 && macosle != 0) || (linuxle != 0 && macosle != 0))
-            {
-                MessageBox(*this, TEXT("File has mixed line endings. Converting to windows."), g_ProjectTitle, MB_ICONASTERISK | MB_OK);
-                m_LineEndings = LineEndings::Windows;
-            }
-            else if (windowsle > 0)
-                m_LineEndings = LineEndings::Windows;
-            else if (linuxle > 0)
-                m_LineEndings = LineEndings::Unix;
-            else if (macosle > 0)
-                m_LineEndings = LineEndings::Macintosh;
         }
         if (!fullfile.empty())
+        {
+            Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_DETECTFROMCONTENT);
             Edit_SetText(m_hWndChild, fullfile.c_str());
+        }
+        else
+            Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CRLF);
+
+        if ((LineEnding[EC_ENDOFLINE_CRLF] != 0 && LineEnding[EC_ENDOFLINE_CR] != 0) || (LineEnding[EC_ENDOFLINE_CRLF] != 0 && LineEnding[EC_ENDOFLINE_LF] != 0) || (LineEnding[EC_ENDOFLINE_CR] != 0 && LineEnding[EC_ENDOFLINE_LF] != 0))
+        {
+            if (MessageBox(*this, TEXT("File has mixed line endings. Do you wish to convert to Windows (CRLF)?"), g_ProjectTitle, MB_ICONASTERISK | MB_YESNO) == IDYES)
+            {
+                Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CRLF);
+                Edit_ReplaceLineEndings(m_hWndChild);
+            }
+        }
     }
     Edit_SetModify(m_hWndChild, false);
     SetTitle();
@@ -475,16 +470,16 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         SetModified();
         break;
     case ID_LINEENDINGS_WINDOWS:
-        m_LineEndings = LineEndings::Windows;
-        SetModified();
+        Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CRLF);
+        Edit_ReplaceLineEndings(m_hWndChild);
         break;
     case ID_LINEENDINGS_UNIX:
-        m_LineEndings = LineEndings::Unix;
-        SetModified();
+        Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_CR);
+        Edit_ReplaceLineEndings(m_hWndChild);
         break;
     case ID_LINEENDINGS_MACINTOSH:
-        m_LineEndings = LineEndings::Macintosh;
-        SetModified();
+        Edit_SetEndOfLine(m_hWndChild, EC_ENDOFLINE_LF);
+        Edit_ReplaceLineEndings(m_hWndChild);
         break;
     case ID_EDIT_UNDO:
         if (Edit_CanUndo(m_hWndChild))
@@ -516,6 +511,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         if (hNewEdit)
         {
             InitEditEx(hNewEdit);
+            Edit_SetExtendedStyle(m_hWndChild, Edit_GetExtendedStyle(m_hWndChild), 0xFFFF);
             EditEx_SetStyle(hNewEdit, EditEx_GetStyle(m_hWndChild));
             SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
             // TODO Get tab width
@@ -658,9 +654,9 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_ENCODING_UTF8:          state.checked = m_cp == CP_UTF8; break;
     case ID_ENCODING_UTF16_BE:      state.checked = m_cp == CP_UTF16_BE; break;
     case ID_ENCODING_UTF16_LE:      state.checked = m_cp == CP_UTF16_LE; break;
-    case ID_LINEENDINGS_WINDOWS:    state.checked = m_LineEndings == LineEndings::Windows; break;
-    case ID_LINEENDINGS_UNIX:       state.checked = m_LineEndings == LineEndings::Unix; break;
-    case ID_LINEENDINGS_MACINTOSH:  state.checked = m_LineEndings == LineEndings::Macintosh; break;
+    case ID_LINEENDINGS_WINDOWS:    state.checked = Edit_GetEndOfLine(m_hWndChild) == EC_ENDOFLINE_CRLF; break;
+    case ID_LINEENDINGS_UNIX:       state.checked = Edit_GetEndOfLine(m_hWndChild) == EC_ENDOFLINE_CR; break;
+    case ID_LINEENDINGS_MACINTOSH:  state.checked = Edit_GetEndOfLine(m_hWndChild) == EC_ENDOFLINE_LF; break;
     case ID_EDIT_UNDO:              state.enabled = Edit_CanUndo(m_hWndChild); break;
     case ID_EDIT_REDO:              state.enabled = false; break; // TODO Edit_CanRedo(m_hWndChild); break;
     case ID_EDIT_CUT:

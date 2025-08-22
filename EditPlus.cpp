@@ -214,12 +214,13 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         else
         {
             ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-            NotifyParent(hWnd, EN_SEL_CHANGED);
+            if (IsWindowVisible(hWnd))
+                NotifyParent(hWnd, EN_SEL_CHANGED);
         }
         break;
     case WM_CUT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        // TODO Unsure why but WM_CUT not longer deletes the selection
+        // TODO Unsure why but WM_CUT not longer deletes the selection when WM_COPY is overridden
         Edit_ReplaceSelEx(hWnd, TEXT(""), TRUE);
         break;
     case WM_COPY:
@@ -301,7 +302,8 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             }
             _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
         }
-        NotifyParent(hWnd, EN_SEL_CHANGED);
+        if (IsWindowVisible(hWnd))
+            NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     }
     case EM_SETTABSTOPS:
@@ -329,11 +331,12 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     //case WM_KEYDOWN:
     case WM_LBUTTONDOWN:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        NotifyParent(hWnd, EN_SEL_CHANGED);
+        if (IsWindowVisible(hWnd))
+            NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     case WM_MOUSEMOVE:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (wParam & MK_LBUTTON && eexd->nPos != (DWORD) lParam)
+        if (wParam & MK_LBUTTON && eexd->nPos != (DWORD) lParam && IsWindowVisible(hWnd))
             NotifyParent(hWnd, EN_SEL_CHANGED);
         eexd->nPos = (DWORD) lParam;
         break;
@@ -344,8 +347,6 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
         const HDC hDC = GetDC(hWnd);
         SelectFont(hDC, GetWindowFont(hWnd));
-
-        //const SIZE gutterSize = GetGutterSize(hWnd, hDC);
 
         RECT rc = {};
         GetClientRect(hWnd, &rc);

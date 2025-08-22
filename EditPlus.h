@@ -28,9 +28,65 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
     return hWnd;
 }
 
+//#define Edit_GetSelEx(hwndCtl, ichStart, ichEnd)  ((void)SNDMSG((hwndCtl), EM_GETSEL, (WPARAM)(ichStart), (LPARAM)(ichEnd)))
+//#define Edit_ReplaceSelEx(hwndCtl, lpszReplace, allowundo)   ((void)SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM)(LPCTSTR)(lpszReplace)))
+//#define Edit_Scroll(hwndCtl, dv, dh)            ((DWORD)SNDMSG((hwndCtl), EM_LINESCROLL, (WPARAM)(dh), (LPARAM)(dv)))
+
+inline void Edit_GetSelEx(HWND hwndCtl, DWORD* ichStart, DWORD* ichEnd) { ((void) SNDMSG((hwndCtl), EM_GETSEL, (WPARAM) (ichStart), (LPARAM) (ichEnd))); }
+inline void Edit_ReplaceSelEx(HWND hwndCtl, LPCTSTR lpszReplace, BOOL allowundo) { ((void) SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM) (LPCTSTR) (lpszReplace))); }
+inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
+inline POINT Edit_GetPosFromChar(HWND hwndCtl, UINT nChar) { return MAKEPOINT((DWORD) SNDMSG((hwndCtl), EM_POSFROMCHAR, (WPARAM) (nChar), 0)); }
+inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_GETLIMITTEXT, 0, 0)); }
+
 inline bool IsStartOfNewLine(LPCTSTR lpText, int index)
 {
-    return index == 0 || lpText[index - 1] == TEXT('\n');
+    return index == 0 || lpText[index - 1] == TEXT('\r') || lpText[index - 1] == TEXT('\n');
+}
+
+inline void Edit_ReplaceLineEndings(HWND hWnd)
+{
+    const LPCTSTR sEol[4] = { TEXT(""), TEXT("\r\n"), TEXT("\n"), TEXT("\r") };
+    const EC_ENDOFLINE eol = Edit_GetEndOfLine(hWnd);
+    const int len = lstrlen(sEol[eol]);
+
+    DWORD nSelStart, nSelEnd;
+    Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
+
+    SetWindowRedraw(hWnd, FALSE);
+    const HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+    const int count = Edit_GetLineCount(hWnd);
+    for (int i = 0; i < count - 1; ++i)
+    {
+        _ASSERT(count == Edit_GetLineCount(hWnd));
+        HANDLE hText = Edit_GetHandle(hWnd);
+        _ASSERT(hText);
+        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
+        _ASSERT(lpText);
+
+        const DWORD nextindex = Edit_LineIndex(hWnd, i + 1);
+        if (IsStartOfNewLine(lpText, nextindex))
+        {
+            LocalUnlock(hText);
+
+            const DWORD begin = nextindex - (lpText[nextindex - 2] == TEXT('\r') ? 2 : 1);
+            if ((nextindex - begin) != len || memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
+            {
+                Edit_SetSel(hWnd, begin, nextindex);
+                Edit_ReplaceSelEx(hWnd, sEol[eol], TRUE);
+                if (begin < nSelStart)
+                    nSelStart += len - (int)(nextindex - begin);
+                if (begin < nSelEnd)
+                    nSelEnd += len - (int) (nextindex - begin);
+            }
+        }
+        else
+            LocalUnlock(hText);
+    }
+
+    Edit_SetSel(hWnd, nSelStart, nSelEnd);
+    SetCursor(hCursor);
+    SetWindowRedraw(hWnd, TRUE);
 }
 
 inline int EditGetActualLine(HWND hWnd, int line, LPCTSTR lpText)
@@ -78,16 +134,6 @@ inline POINT EditGetPos(HWND hWnd, const DWORD dwCaret)
 }
 
 void InitEditEx(HWND hWnd);
-
-//#define Edit_GetSelEx(hwndCtl, ichStart, ichEnd)  ((void)SNDMSG((hwndCtl), EM_GETSEL, (WPARAM)(ichStart), (LPARAM)(ichEnd)))
-//#define Edit_ReplaceSelEx(hwndCtl, lpszReplace, allowundo)   ((void)SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM)(LPCTSTR)(lpszReplace)))
-//#define Edit_Scroll(hwndCtl, dv, dh)            ((DWORD)SNDMSG((hwndCtl), EM_LINESCROLL, (WPARAM)(dh), (LPARAM)(dv)))
-
-inline void Edit_GetSelEx(HWND hwndCtl, DWORD* ichStart, DWORD* ichEnd) { ((void) SNDMSG((hwndCtl), EM_GETSEL, (WPARAM) (ichStart), (LPARAM) (ichEnd))); }
-inline void Edit_ReplaceSelEx(HWND hwndCtl, LPCTSTR lpszReplace, BOOL allowundo) { ((void) SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM) (LPCTSTR) (lpszReplace))); }
-inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
-inline POINT Edit_GetPosFromChar(HWND hwndCtl, UINT nChar) { return MAKEPOINT((DWORD) SNDMSG((hwndCtl), EM_POSFROMCHAR, (WPARAM) (nChar), 0)); }
-inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_GETLIMITTEXT, 0, 0)); }
 
 // Edit Plus Messages
 
