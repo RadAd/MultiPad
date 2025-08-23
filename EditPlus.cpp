@@ -129,6 +129,11 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         eexd->dwExStyle = dwExStyle;
         break;
     }
+    case EM_SETCARETINDEX:
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        if (IsWindowVisible(hWnd))
+            NotifyParent(hWnd, EN_SEL_CHANGED);
+        break;
     case WM_CHAR:
         if (wParam == VK_TAB && (eexd->dwExStyle & ES_EX_USETABS) == 0)
         {
