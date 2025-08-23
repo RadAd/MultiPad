@@ -57,20 +57,15 @@ inline DWORD EditGetFirstVisibleFileLine(HWND hWnd)
 
 void InitEditEx(HWND hWnd);
 
-// Edit Plus Messages
-
-#define EM_EX_GETSTYLE      0x00F2
-#define EM_EX_SETSTYLE      0x00F3
-
 // Edit Plus Notifications
 
 #define EN_SEL_CHANGED 0x0A00
 
 // Edit Plus Styles
 
-#define ES_EX_VIEWWHITESPACE    0x00000001
-#define ES_EX_LINENUMBERS       0x00000002
-#define ES_EX_USETABS           0x00000004
+#define ES_EX_VIEWWHITESPACE    0x0100
+#define ES_EX_LINENUMBERS       0x0200
+#define ES_EX_USETABS           0x0400
 
 // TODO
 // bookmarks
@@ -78,6 +73,3 @@ void InitEditEx(HWND hWnd);
 
 // Edit_SetCaretIndex has an error newCaretPosition/newCaretIndex
 inline BOOL Edit_SetCaretIndexEx(HWND hwndCtl, int newCaretPosition) { return (BOOL) SNDMSG((hwndCtl), EM_SETCARETINDEX, (WPARAM) (newCaretPosition), 0); }
-
-inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
-inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }

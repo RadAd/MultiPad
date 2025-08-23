@@ -80,7 +80,6 @@ struct EditExData
     DWORD nPos; // Last mouse position
     DWORD nLineNumberWidth = 0;
     DWORD nTrailingWhitespaceWidth = 2;
-    DWORD dwExStyle = ES_EX_USETABS;
     DWORD nTabSize = 32 / 4;
 };
 
@@ -92,15 +91,13 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
     switch (uMsg)
     {
-    case EM_EX_GETSTYLE:
-        ret = eexd->dwExStyle;
-        break;
-    case EM_EX_SETSTYLE:
+    case EM_SETEXTENDEDSTYLE:
     {
-        DWORD dwExStyle = (DWORD) wParam;
-        if ((eexd->dwExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
+        const DWORD dwOldExStyle = Edit_GetExtendedStyle(hWnd);
+        const DWORD dwExStyle = (DWORD) wParam & (DWORD) lParam;
+        if ((dwOldExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
             EditExSetViewWhiteSpace(hWnd, wParam & ES_EX_VIEWWHITESPACE);
-        if ((eexd->dwExStyle & ES_EX_LINENUMBERS) != (dwExStyle & ES_EX_LINENUMBERS))
+        if ((dwOldExStyle & ES_EX_LINENUMBERS) != (dwExStyle & ES_EX_LINENUMBERS))
         {
             if (dwExStyle & ES_EX_LINENUMBERS)
             {
@@ -126,7 +123,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
                 eexd->nLineNumberWidth = 0;
             }
         }
-        eexd->dwExStyle = dwExStyle;
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         break;
     }
     case EM_SETCARETINDEX:
@@ -135,7 +132,9 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     case WM_CHAR:
-        if (wParam == VK_TAB && (eexd->dwExStyle & ES_EX_USETABS) == 0)
+    {
+        const DWORD dwExStyle = Edit_GetExtendedStyle(hWnd);
+        if (wParam == VK_TAB && (dwExStyle & ES_EX_USETABS) == 0)
         {
             // TODO Implement shift+Tab
             DWORD nSelStart, nSelEnd;
@@ -150,7 +149,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         }
         else
         {
-            if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+            if (dwExStyle & ES_EX_VIEWWHITESPACE)
                 ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
             ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
@@ -162,6 +161,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             _VERIFY(InvalidateRect(hWnd, &rc, TRUE));
         }
         break;
+    }
     case WM_KEYDOWN:
         if (wParam == VK_UP && (GetKeyState(VK_CONTROL) & 0x8000))
             Edit_ScrollEx(hWnd, SB_LINEUP);
@@ -205,7 +205,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
                     lpClip[nLength] = TEXT('\0');
                     GlobalUnlock(hText);
 
-                    if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+                    if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
                         ModifyWhiteSpace(lpClip, nLength, false);
                 }
                 GlobalUnlock(hClip);
@@ -249,7 +249,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
         const DWORD dwSelStart = nSelStart;
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+        if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
         {
             const HANDLE hText = Edit_GetHandle(hWnd);
             LPTSTR lpText = (LPTSTR) GlobalLock(hText);
@@ -275,12 +275,12 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         break;
     case WM_SETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+        if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
             EditExSetViewWhiteSpace(hWnd, true);
         break;
     case WM_GETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (eexd->dwExStyle & ES_EX_VIEWWHITESPACE)
+        if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(lParam), wParam, false);
         break;
 
@@ -471,4 +471,5 @@ void InitEditEx(HWND hWnd)
 {
     _ASSERT(GetWindowStyle(hWnd) & ES_MULTILINE);
     _VERIFY(SetWindowSubclass(hWnd, EditExProc, 0, reinterpret_cast<DWORD_PTR>(new EditExData({}))));
+    Edit_SetExtendedStyle(hWnd, ES_EX_USETABS, ES_EX_USETABS);
 }

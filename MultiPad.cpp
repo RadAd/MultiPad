@@ -523,7 +523,6 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
         {
             InitEditEx(hNewEdit);
             Edit_SetExtendedStyle(m_hWndChild, Edit_GetExtendedStyle(m_hWndChild), 0xFFFF);
-            EditEx_SetStyle(hNewEdit, EditEx_GetStyle(m_hWndChild));
             SetWindowFont(hNewEdit, GetWindowFont(m_hWndChild), TRUE);
             // TODO Get tab width
             int dwTabWidth = m_dwTabWidth * 4;
@@ -581,23 +580,17 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     }
     case ID_VIEW_WHITESPACE:
     {
-        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
-        dwExStyle ^= ES_EX_VIEWWHITESPACE;
-        EditEx_SetStyle(m_hWndChild, dwExStyle);
+        Edit_SetExtendedStyle(m_hWndChild, Edit_GetExtendedStyle(m_hWndChild) ^ ES_EX_VIEWWHITESPACE, ES_EX_VIEWWHITESPACE);
         break;
     }
     case ID_VIEW_LINENUMBERS:
     {
-        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
-        dwExStyle ^= ES_EX_LINENUMBERS;
-        EditEx_SetStyle(m_hWndChild, dwExStyle);
+        Edit_SetExtendedStyle(m_hWndChild, Edit_GetExtendedStyle(m_hWndChild) ^ ES_EX_LINENUMBERS, ES_EX_LINENUMBERS);
         break;
     }
     case ID_VIEW_USETABS:
     {
-        DWORD dwExStyle = EditEx_GetStyle(m_hWndChild);
-        dwExStyle ^= ES_EX_USETABS;
-        EditEx_SetStyle(m_hWndChild, dwExStyle);
+        Edit_SetExtendedStyle(m_hWndChild, Edit_GetExtendedStyle(m_hWndChild) ^ ES_EX_USETABS, ES_EX_USETABS);
         break;
     }
     case ID_TABSIZE_1: case ID_TABSIZE_2: case ID_TABSIZE_3: case ID_TABSIZE_4:
@@ -690,9 +683,9 @@ void TextDocWindow::GetState(UINT id, State& state) const
 #endif
     case ID_EDIT_SELECTALL:         state.enabled = Edit_GetTextLength(m_hWndChild); break;
     case ID_VIEW_WORDWRAP:          state.checked = (GetWindowStyle(m_hWndChild) & WS_HSCROLL) == 0; break;
-    case ID_VIEW_WHITESPACE:        state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
-    case ID_VIEW_LINENUMBERS:       state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
-    case ID_VIEW_USETABS:           state.checked = EditEx_GetStyle(m_hWndChild) & ES_EX_USETABS; break;
+    case ID_VIEW_WHITESPACE:        state.checked = Edit_GetExtendedStyle(m_hWndChild) & ES_EX_VIEWWHITESPACE; break;
+    case ID_VIEW_LINENUMBERS:       state.checked = Edit_GetExtendedStyle(m_hWndChild) & ES_EX_LINENUMBERS; break;
+    case ID_VIEW_USETABS:           state.checked = Edit_GetExtendedStyle(m_hWndChild) & ES_EX_USETABS; break;
     case ID_TABSIZE_1: case ID_TABSIZE_2: case ID_TABSIZE_3: case ID_TABSIZE_4:
     case ID_TABSIZE_5: case ID_TABSIZE_6: case ID_TABSIZE_7: case ID_TABSIZE_8:
                                     state.checked = (m_dwTabWidth == (id - ID_TABSIZE_1 + 1)); break;
