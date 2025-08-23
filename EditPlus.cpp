@@ -415,6 +415,53 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     return ret;
 }
 
+void Edit_ReplaceLineEndings(HWND hWnd)
+{
+    const LPCTSTR sEol[4] = { TEXT(""), TEXT("\r\n"), TEXT("\n"), TEXT("\r") };
+    const EC_ENDOFLINE eol = Edit_GetEndOfLine(hWnd);
+    const int len = lstrlen(sEol[eol]);
+
+    DWORD nSelStart, nSelEnd;
+    Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
+
+    SetWindowRedraw(hWnd, FALSE);
+    const HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+    const DWORD count = Edit_GetFileLineCount(hWnd);
+    for (DWORD i = 0; i < count - 1; ++i)
+    {
+        _ASSERT(count == Edit_GetFileLineCount(hWnd));
+        HANDLE hText = Edit_GetHandle(hWnd);
+        _ASSERT(hText);
+        LPCTSTR lpText = (LPCTSTR) LocalLock(hText);
+        _ASSERT(lpText);
+
+        const DWORD index = Edit_GetFileLineIndex(hWnd, i);
+        const DWORD length = Edit_GetFileLineLength(hWnd, index);
+        const DWORD nextindex = Edit_GetFileLineIndex(hWnd, i + 1);
+
+        const DWORD begin = index + length;
+        if ((nextindex - begin) != len || memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
+        {
+            LocalUnlock(hText);
+
+            Edit_SetSel(hWnd, begin, nextindex);
+            // TODO What if we send a VK_RETURN in a WM_CHAR?
+            Edit_ReplaceSelEx(hWnd, sEol[eol], TRUE);
+            if (begin < nSelStart)
+                nSelStart += len - (int) (nextindex - begin);
+            if (begin < nSelEnd)
+                nSelEnd += len - (int) (nextindex - begin);
+        }
+        else
+            LocalUnlock(hText);
+    }
+
+    Edit_SetSel(hWnd, nSelStart, nSelEnd);
+    SetCursor(hCursor);
+    SetWindowRedraw(hWnd, TRUE);
+}
+
 void InitEditEx(HWND hWnd)
 {
     _ASSERT(GetWindowStyle(hWnd) & ES_MULTILINE);

@@ -29,16 +29,17 @@
 // Toolbar
 // Monitor for file updates
 // Multi undo
-// Save position in registry
 // Choose font
+// default options
 // Open from url
 // Recent file list
 // goto line
-// tab mode
+// tab order mru
 // split view
 // readonly mode
 // ES_EX_CONVERT_EOL_ON_PASTE
-// Use right gutter to show mismatched EOL and whitespace at end of line
+// ES_EX_ZOOMABLE
+// Use right gutter to show mismatched EOL
 
 #define __istcsym(c)  (_istalnum(c) || ((c) == TEXT('_')))
 
@@ -261,7 +262,7 @@ public:
         {
             if (c == 0x2421)
                 c = 0x7F;
-            if (c >= 0x2410 && c < 0x2420)
+            else if (c >= 0x2410 && c < 0x2420)
                 c -= 0x2410;
         }
 
@@ -371,27 +372,12 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                 }
                 for (TCHAR& c : line)
                 {
-                    switch (c)
-                    {
-                    case TEXT('\r'):
-                    case TEXT('\n'):
-                        break;
-
-                    case TEXT(' '):
-                        //c = 0x2423;
-                        break;
-                    case TEXT('\t'):
-                        break;
-
-                    case 0x7F:  // DEL
+                    if (c == 0x7F)  // DEL
                         c = 0x2421;
-                        break;
-
-                    default:
-                        if (_istcntrl(c))
-                            c += 0x2410;
-                        break;
-                    }
+                    else if (_istcntrl(c) && !_istspace(c))
+                        c += 0x2410;
+                    else if (c >= 0x2410 && c < 0x2420 || c == 0x2421) // Unicode control characters
+                        _ASSERT(FALSE); // TODO Problem if they already exist in file
                 }
                 fullfile += line;
             }
