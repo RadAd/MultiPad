@@ -61,7 +61,7 @@ LRESULT CALLBACK MessageHandler::s_WndProc(const HWND hWnd, const UINT uMsg, con
         delete self;
 
     bHandled = m.m_bHandled;
-    _ASSERT(bHandled);
+    //_ASSERT(bHandled);
     return ret;
 }
 

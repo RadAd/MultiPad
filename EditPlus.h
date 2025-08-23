@@ -76,5 +76,8 @@ void InitEditEx(HWND hWnd);
 // bookmarks
 // show unprintable characters
 
+// Edit_SetCaretIndex has an error newCaretPosition/newCaretIndex
+inline BOOL Edit_SetCaretIndexEx(HWND hwndCtl, int newCaretPosition) { return (BOOL) SNDMSG((hwndCtl), EM_SETCARETINDEX, (WPARAM) (newCaretPosition), 0); }
+
 inline void EditEx_SetStyle(HWND hwndCtl, DWORD dwExStyle) { ((void) SNDMSG((hwndCtl), EM_EX_SETSTYLE, (WPARAM) (dwExStyle), 0)); }
 inline DWORD EditEx_GetStyle(HWND hwndCtl) { return ((DWORD) SNDMSG((hwndCtl), EM_EX_GETSTYLE, 0, 0)); }

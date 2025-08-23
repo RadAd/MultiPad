@@ -4,6 +4,8 @@
 //
 #define IDR_MENU1                       101
 #define IDR_ACCELERATOR1                102
+#define IDD_GOTOLINE                    103
+#define IDC_LINE                        1001
 #define ID_FILE_NEW                     40001
 #define ID_FILE_EXIT                    40002
 #define ID_FILE_OPEN                    40003
@@ -43,14 +45,15 @@
 #define ID_EDIT_CUT                     40044
 #define ID_EDIT_COPY                    40045
 #define ID_EDIT_PASTE                   40046
+#define ID_EDIT_GOTOLINE                40049
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        103
-#define _APS_NEXT_COMMAND_VALUE         40049
-#define _APS_NEXT_CONTROL_VALUE         1001
+#define _APS_NEXT_RESOURCE_VALUE        105
+#define _APS_NEXT_COMMAND_VALUE         40052
+#define _APS_NEXT_CONTROL_VALUE         1002
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -22,6 +22,7 @@
 #include "EditPlus.h"
 #include "GdiPlus.h"
 #include "RegUtils.h"
+#include "GoToLineDlg.h"
 
 // TODO
 // Application icon
@@ -371,7 +372,7 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                     line.insert(line.size(), 1, TEXT('\n'));
                 }
                 for (TCHAR& c : line)
-                {
+                {   // TODO Move into EditPLus
                     if (c == 0x7F)  // DEL
                         c = 0x2421;
                     else if (_istcntrl(c) && !_istspace(c))
@@ -502,6 +503,17 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
     case ID_EDIT_SELECTALL:
         Edit_SetSel(m_hWndChild, 0, Edit_GetTextLength(m_hWndChild));
         break;
+    case ID_EDIT_GOTOLINE:
+    {
+        int line = GoToLineDlg::DoModal(*this);
+        if (line > 0)
+        {
+            const DWORD dwChar = Edit_GetFileLineIndex(m_hWndChild, line - 1);
+            Edit_SetCaretIndexEx(m_hWndChild, dwChar);
+            Edit_ScrollCaret(m_hWndChild);
+        }
+        break;
+    }
     case ID_VIEW_WORDWRAP:
     {
         DWORD dwStyle = GetWindowStyle(m_hWndChild);
