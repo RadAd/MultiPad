@@ -1,4 +1,5 @@
 #include "EditPlus.h"
+#include <tchar.h>
 #include <strsafe.h>
 
 #ifndef _DEBUG
@@ -31,6 +32,8 @@ namespace
                     c = vspace;
                 else if (c == TEXT('\t'))
                     c = vtab;
+                else if (c == vspace || c == vtab)
+                    _ASSERT(FALSE); // TODO Problem if they already exist in file
             }
         }
         else
@@ -46,16 +49,62 @@ namespace
         }
     }
 
+    inline void ModifyControlChars(LPTSTR lpText, const SIZE_T size, bool add)
+    {
+        // https://en.wikipedia.org/wiki/Unicode_control_characters
+        if (add)
+        {
+            for (int i = 0; i < size; ++i)
+            {
+                TCHAR& c = lpText[i];
+                if (c == 0x7F)  // DEL
+                    c = 0x2421;
+                else if (_istcntrl(c) && !_istspace(c))
+                    c += 0x2410;
+                else if (c >= 0x2410 && c < 0x2420 || c == 0x2421) // Unicode control characters
+                    _ASSERT(FALSE); // TODO Problem if they already exist in file
+            }
+        }
+        else
+        {
+            for (int i = 0; i < size; ++i)
+            {
+                TCHAR& c = lpText[i];
+                if (c == 0x2421)
+                    c = 0x7F;
+                else if (c >= 0x2410 && c < 0x2420)
+                    c -= 0x2410;
+            }
+        }
+    }
+
     inline void EditExSetViewWhiteSpace(HWND hWnd, bool viewWhiteSpace)
     {
         const HANDLE hText = Edit_GetHandle(hWnd);
-        const SIZE_T size = GlobalSize(hText) / sizeof(TCHAR);
+        //const SIZE_T size = GlobalSize(hText) / sizeof(TCHAR);
+        const SIZE_T size = Edit_GetTextLength(hWnd);
         _ASSERT(size != 0);
         LPTSTR lpText = (LPTSTR) GlobalLock(hText);
         _ASSERT(lpText);
         if (lpText)
         {
             ModifyWhiteSpace(lpText, size, viewWhiteSpace);
+            GlobalUnlock(hText);
+            _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
+        }
+    }
+
+    inline void EditExSetViewControlChars(HWND hWnd, bool viewWhiteSpace)
+    {
+        const HANDLE hText = Edit_GetHandle(hWnd);
+        //const SIZE_T size = GlobalSize(hText) / sizeof(TCHAR);
+        const SIZE_T size = Edit_GetTextLength(hWnd);
+        _ASSERT(size != 0);
+        LPTSTR lpText = (LPTSTR) GlobalLock(hText);
+        _ASSERT(lpText);
+        if (lpText)
+        {
+            ModifyControlChars(lpText, size, viewWhiteSpace);
             GlobalUnlock(hText);
             _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
         }
@@ -96,7 +145,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         const DWORD dwOldExStyle = Edit_GetExtendedStyle(hWnd);
         const DWORD dwExStyle = (DWORD) wParam & (DWORD) lParam;
         if ((dwOldExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
-            EditExSetViewWhiteSpace(hWnd, wParam & ES_EX_VIEWWHITESPACE);
+            EditExSetViewWhiteSpace(hWnd, dwExStyle & ES_EX_VIEWWHITESPACE);
         if ((dwOldExStyle & ES_EX_LINENUMBERS) != (dwExStyle & ES_EX_LINENUMBERS))
         {
             if (dwExStyle & ES_EX_LINENUMBERS)
@@ -151,6 +200,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         {
             if (dwExStyle & ES_EX_VIEWWHITESPACE)
                 ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
+            ModifyControlChars(reinterpret_cast<LPTSTR>(&wParam), 1, true);
             ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
         {
@@ -207,6 +257,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
 
                     if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
                         ModifyWhiteSpace(lpClip, nLength, false);
+                    ModifyControlChars(lpClip, nLength, false);
                 }
                 GlobalUnlock(hClip);
 
@@ -234,8 +285,6 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             _ASSERT(lpClip);
             if (lpClip)
             {
-                const SIZE_T size = GlobalSize(hClip) / sizeof(TCHAR);
-                _ASSERT(size != 0);
                 Edit_ReplaceSelEx(hWnd, lpClip, TRUE);
                 GlobalUnlock(hClip);
             }
@@ -258,6 +307,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             {
                 const DWORD nCaretPos = Edit_GetCaretIndex(hWnd);
                 ModifyWhiteSpace(lpText + dwSelStart, nCaretPos - dwSelStart, true);
+                ModifyControlChars(lpText + dwSelStart, nCaretPos - dwSelStart, true);
                 GlobalUnlock(hText);
             }
             _VERIFY(InvalidateRect(hWnd, NULL, TRUE));
@@ -277,11 +327,13 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
             EditExSetViewWhiteSpace(hWnd, true);
+        EditExSetViewControlChars(hWnd, true);
         break;
     case WM_GETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(lParam), wParam, false);
+        ModifyControlChars(reinterpret_cast<LPTSTR>(lParam), wParam, false);
         break;
 
     case EM_SETSEL:

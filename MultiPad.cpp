@@ -258,15 +258,6 @@ public:
         text.resize(GetWindowTextLength(m_hWndChild));
         GetWindowText(m_hWndChild, text.data(), static_cast<int>(text.size() + 1));
 
-        // https://en.wikipedia.org/wiki/Unicode_control_characters
-        for (TCHAR& c : text)
-        {
-            if (c == 0x2421)
-                c = 0x7F;
-            else if (c >= 0x2410 && c < 0x2420)
-                c -= 0x2410;
-        }
-
 #ifdef UNICODE
         const UINT cp = CP_UTF16_LE;
 #else
@@ -370,15 +361,6 @@ BOOL TextDocWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
                 {
                     ++LineEnding[EC_ENDOFLINE_LF];
                     line.insert(line.size(), 1, TEXT('\n'));
-                }
-                for (TCHAR& c : line)
-                {   // TODO Move into EditPLus
-                    if (c == 0x7F)  // DEL
-                        c = 0x2421;
-                    else if (_istcntrl(c) && !_istspace(c))
-                        c += 0x2410;
-                    else if (c >= 0x2410 && c < 0x2420 || c == 0x2421) // Unicode control characters
-                        _ASSERT(FALSE); // TODO Problem if they already exist in file
                 }
                 fullfile += line;
             }
