@@ -104,4 +104,7 @@
   <ItemGroup>
     <ResourceCompile Include="MultiPad.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\MultiPad.ico" />
+  </ItemGroup>
 </Project>

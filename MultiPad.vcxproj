@@ -117,6 +117,9 @@
   <ItemGroup>
     <ResourceCompile Include="MultiPad.rc" />
   </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\MultiPad.ico" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

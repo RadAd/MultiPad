@@ -127,6 +127,7 @@ inline int WordBreakProc(_In_ LPCTSTR lpch, _In_ int ichCurrent, _In_ const int 
 
 #define ID_EDIT 213
 #define ID_TABCTRL 312
+#define ID_STATUS 313
 
 class TextDocWindow : public MDIChild, protected CommandState
 {
@@ -677,7 +678,14 @@ void TextDocWindow::GetState(UINT id, State& state) const
 class RootWindow : public MDIFrame, protected CommandState
 {
     friend WindowManager<RootWindow>;
-    using Class = MainMDIFrameClass;
+    struct Class : MainMDIFrameClass
+    {
+        static void GetWndClass(WNDCLASS& wc)
+        {
+            MainMDIFrameClass::GetWndClass(wc);
+            wc.hIcon = LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_ICON1));
+        }
+    };
 public:
     static ATOM Register() { return ::Register<Class>(); }
     static RootWindow* Create() { return WindowManager<RootWindow>::Create(NULL, g_ProjectTitle); }
@@ -871,7 +879,7 @@ BOOL RootWindow::OnCreate(const LPCREATESTRUCT lpCreateStruct)
 
     m_hTabControl = CHECK_LE(CreateWindowEx(0, WC_TABCONTROL, NULL, WS_CHILD | WS_VISIBLE | TCS_FOCUSNEVER | TCS_SINGLELINE, 50, 50, 100, 100, *this, (HMENU) ID_TABCTRL, g_hInstance, NULL));
     CHECK_LE(TabCtrl_SetUnicodeFormat(m_hTabControl, TRUE));
-    m_hStatusBar = CHECK_LE(CreateStatusWindow(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, TEXT("Ready"), *this, 0));
+    m_hStatusBar = CHECK_LE(CreateStatusWindow(WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP, TEXT("Ready"), *this, ID_STATUS));
 
     m_ShowMenuShortcutChain.Init(m_hAccelTable);
 
@@ -1050,7 +1058,21 @@ LRESULT RootWindow::OnNotify(DWORD dwID, LPNMHDR pNmHdr)
         }
         }
         return 0;
-
+    case ID_STATUS:
+        switch (pNmHdr->code)
+        {
+        case NM_DBLCLK:
+        {
+            LPNMMOUSE pMouse = (LPNMMOUSE) pNmHdr;
+            if (pMouse->dwItemSpec == STATUS_POS)
+            {
+                HWND hWndActive = GetActiveChild();
+                SendMessage(hWndActive, WM_COMMAND, ID_EDIT_GOTOLINE, 0);
+            }
+            break;
+        }
+        }
+        return 0;
     default:
         SetHandled(false);
         return 0;
