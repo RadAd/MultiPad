@@ -29,6 +29,7 @@ to update the information in the status bar.
 By intercepting the tab character when pressed, we can insert spaces instead. The number of spaces can be chosen to achieve the appropriate tab indentation.
 ### Indenting
 ### Better word breaks
+The edit control supports using a function to find word breaks. This is used when word wrapping is turned on and when advancing to the next or previous word. The default behaviour is to break on whitespace, I have used a function that breaks on whitepsace and on punctuation which is more appropriate for code editing.
 ### Visible control characters
 This is achieved by replacing the control characters with visible Unicode versions when text is entered and putting them back when text is extracted. This does have the downside that these Unicode characters used in the original text will also be replaced.
 ### Visible whitespace
