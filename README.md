@@ -26,6 +26,7 @@ to update the information in the status bar.
 + Ctrl+PgDown - page down
 ### Line endings
 ### Insert tabs or spaces
+By intercepting the tab character when pressed, we can insert spaces instead. The number of spaces can be chosen to achieve the appropriate tab indentation.
 ### Indenting
 ### Better word breaks
 ### Visible control characters
