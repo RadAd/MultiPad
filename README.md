@@ -28,8 +28,10 @@ to update the information in the status bar.
 ### Insert tabs or spaces
 ### Indenting
 ### Better word breaks
-### Visible whitespace
 ### Visible control characters
+This is achieved by replacing the control characters with visible Unicode versions when text is entered and putting them back when text is extracted. This does have the downside that these Unicode characters used in the original text will also be replaced.
+### Visible whitespace
+This is achieved with an option to replace the whitespace with a visible Unicode version. This has similar issues to the visible control characters feature. This has teh additional issue that tab character replacement is not expanded like the original tab character is.
 ### Line numbers
 ### Bookmarks
 ### Multi-level undo/redo
