@@ -143,7 +143,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     case EM_SETEXTENDEDSTYLE:
     {
         const DWORD dwOldExStyle = Edit_GetExtendedStyle(hWnd);
-        const DWORD dwExStyle = (DWORD) wParam & (DWORD) lParam;
+        const DWORD dwExStyle = (dwOldExStyle & ~((DWORD) wParam)) | ((DWORD) wParam & (DWORD) lParam);
         if ((dwOldExStyle & ES_EX_VIEWWHITESPACE) != (dwExStyle & ES_EX_VIEWWHITESPACE))
             EditExSetViewWhiteSpace(hWnd, dwExStyle & ES_EX_VIEWWHITESPACE);
         if ((dwOldExStyle & ES_EX_LINENUMBERS) != (dwExStyle & ES_EX_LINENUMBERS))
