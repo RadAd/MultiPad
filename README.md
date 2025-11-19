@@ -25,9 +25,11 @@ to update the information in the status bar.
 + Ctrl+PgUp - page up
 + Ctrl+PgDown - page down
 ### Line endings
+TODO
 ### Insert tabs or spaces
 By intercepting the tab character when pressed, we can insert spaces instead. The number of spaces can be chosen to achieve the appropriate tab indentation.
 ### Indenting
+TODO
 ### Better word breaks
 The edit control supports using a function to find word breaks. This is used when word wrapping is turned on and when advancing to the next or previous word. The default behaviour is to break on whitespace, I have used a function that breaks on whitepsace and on punctuation which is more appropriate for code editing.
 ### Visible control characters
@@ -35,5 +37,8 @@ This is achieved by replacing the control characters with visible Unicode versio
 ### Visible whitespace
 This is achieved with an option to replace the whitespace with a visible Unicode version. This has similar issues to the visible control characters feature. This has teh additional issue that tab character replacement is not expanded like the original tab character is.
 ### Line numbers
+This is achieved by creating a gutter to the left of the edit control that draws the line numbers using the [EM_SETRECT](https://learn.microsoft.com/en-us/windows/win32/controls/em-setrect) message. By intercepting the [WM_PAINT](https://learn.microsoft.com/en-us/windows/win32/gdi/wm-paint) message, we can draw the line numbers in the gutter area.
 ### Bookmarks
+TODO
 ### Multi-level undo/redo
+TODO
