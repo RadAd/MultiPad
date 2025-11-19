@@ -1,6 +1,8 @@
 #include "EditPlus.h"
 #include <tchar.h>
 #include <strsafe.h>
+#include <vector>
+#include <string>
 
 #ifndef _DEBUG
 #define _VERIFY(x) (x)
@@ -32,7 +34,7 @@ namespace
                     c = vspace;
                 else if (c == TEXT('\t'))
                     c = vtab;
-                else if (c == vspace || c == vtab)
+                else if (c == vspace or c == vtab)
                     _ASSERT(FALSE); // TODO Problem if they already exist in file
             }
         }
@@ -59,9 +61,9 @@ namespace
                 TCHAR& c = lpText[i];
                 if (c == 0x7F)  // DEL
                     c = 0x2421;
-                else if (_istcntrl(c) && !_istspace(c))
+                else if (_istcntrl(c) and !_istspace(c))
                     c += 0x2410;
-                else if (c >= 0x2410 && c < 0x2420 || c == 0x2421) // Unicode control characters
+                else if (c >= 0x2410 and c < 0x2420 or c == 0x2421) // Unicode control characters
                     _ASSERT(FALSE); // TODO Problem if they already exist in file
             }
         }
@@ -72,7 +74,7 @@ namespace
                 TCHAR& c = lpText[i];
                 if (c == 0x2421)
                     c = 0x7F;
-                else if (c >= 0x2410 && c < 0x2420)
+                else if (c >= 0x2410 and c < 0x2420)
                     c -= 0x2410;
             }
         }
@@ -122,7 +124,29 @@ namespace
         }
         return sz;
     }
+
+    inline std::wstring GetText(HWND hWnd, const DWORD nStart, const DWORD nEnd)
+    {
+        const HANDLE hText = Edit_GetHandle(hWnd);
+        LPCTSTR lpText = (LPTSTR) GlobalLock(hText);
+        _ASSERT(lpText);
+        if (lpText)
+        {
+            std::wstring ret(lpText + nStart, lpText + nEnd);
+            GlobalUnlock(hText);
+            return ret;
+        }
+        else
+            return {};
+    }
 }
+
+struct UndoData
+{
+    DWORD nSelStart;
+    std::wstring text;
+    int nInsertLength;
+};
 
 struct EditExData
 {
@@ -130,7 +154,34 @@ struct EditExData
     DWORD nLineNumberWidth = 0;
     DWORD nTrailingWhitespaceWidth = 2;
     DWORD nTabSize = 32 / 4;
+    std::vector<UndoData> undo;
+    size_t undoPos = 0;
 };
+
+namespace
+{
+    void CaptureUndo(HWND hWnd, EditExData* eexd, int nInsertLength)
+    {
+        eexd->undo.erase(eexd->undo.begin() + eexd->undoPos, eexd->undo.end());
+
+        DWORD nSelStart, nSelEnd;
+        Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
+        eexd->undo.push_back(UndoData{ nSelStart, GetText(hWnd, nSelStart, nSelEnd), nInsertLength });
+        eexd->undoPos = eexd->undo.size();
+    }
+
+    void SwapUndo(HWND hWnd, UndoData& ud, bool bSelect)
+    {
+        Edit_SetSel(hWnd, ud.nSelStart, ud.nSelStart + ud.nInsertLength);
+        const auto t = GetText(hWnd, ud.nSelStart, ud.nSelStart + ud.nInsertLength);
+        Edit_ReplaceSelEx(hWnd, ud.text.c_str(), 2); // NOTE Special case for EM_REPLACESEL
+        if (bSelect) // Move caret to original position
+            Edit_SetSel(hWnd, ud.nSelStart, ud.nSelStart + ud.text.size());
+        ud.nInsertLength = (int) ud.text.size();
+        ud.text = t;
+        // TODO set modify flag
+    }
+}
 
 LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR, DWORD_PTR dwRefData)
 {
@@ -183,7 +234,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     case WM_CHAR:
     {
         const DWORD dwExStyle = Edit_GetExtendedStyle(hWnd);
-        if (wParam == VK_TAB && (dwExStyle & ES_EX_USETABS) == 0)
+        if (wParam == VK_TAB and (dwExStyle & ES_EX_USETABS) == 0)
         {
             // TODO Implement shift+Tab
             DWORD nSelStart, nSelEnd;
@@ -193,14 +244,16 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             TCHAR s[10] = TEXT("         ");
             _ASSERT(x < ARRAYSIZE(s));
             s[x] = TEXT('\0');
-            Edit_ReplaceSel(hWnd, s);
+            Edit_ReplaceSelEx(hWnd, s, TRUE);
             ret = 0;
         }
         else
         {
+            if (!_istcntrl((TCHAR) wParam))
+                CaptureUndo(hWnd, eexd, 1);
             if (dwExStyle & ES_EX_VIEWWHITESPACE)
                 ModifyWhiteSpace(reinterpret_cast<LPTSTR>(&wParam), 1, true);
-            ModifyControlChars(reinterpret_cast<LPTSTR>(&wParam), 1, true);
+            //ModifyControlChars(reinterpret_cast<LPTSTR>(&wParam), 1, true);
             ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
         {
@@ -213,20 +266,22 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         break;
     }
     case WM_KEYDOWN:
-        if (wParam == VK_UP && (GetKeyState(VK_CONTROL) & 0x8000))
-            Edit_ScrollEx(hWnd, SB_LINEUP);
-        else if (wParam == VK_DOWN && (GetKeyState(VK_CONTROL) & 0x8000))
-            Edit_ScrollEx(hWnd, SB_LINEDOWN);
-        else if (wParam == VK_PRIOR && (GetKeyState(VK_CONTROL) & 0x8000))
-            Edit_ScrollEx(hWnd, SB_PAGEUP);
-        else if (wParam == VK_NEXT && (GetKeyState(VK_CONTROL) & 0x8000))
-            Edit_ScrollEx(hWnd, SB_PAGEDOWN);
-        else
+        if (wParam != VK_CONTROL and GetKeyState(VK_CONTROL) & 0x8000)
         {
-            ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-            if (IsWindowVisible(hWnd))
-                NotifyParent(hWnd, EN_SEL_CHANGED);
+            switch (wParam)
+            {
+            case VK_UP:     Edit_ScrollEx(hWnd, SB_LINEUP); break;
+            case VK_DOWN:   Edit_ScrollEx(hWnd, SB_LINEDOWN); break;
+            case VK_PRIOR:  Edit_ScrollEx(hWnd, SB_PAGEUP); break;
+            case VK_NEXT:   Edit_ScrollEx(hWnd, SB_PAGEDOWN); break;
+            }
         }
+
+        if (wParam == VK_DELETE)
+            CaptureUndo(hWnd, eexd, 0);
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        if (IsWindowVisible(hWnd))
+            NotifyParent(hWnd, EN_SEL_CHANGED);
         break;
     case WM_CUT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -297,6 +352,16 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         DWORD nSelStart, nSelEnd;
         Edit_GetSelEx(hWnd, &nSelStart, &nSelEnd);
         const DWORD dwSelStart = nSelStart;
+        if (wParam == 2)    // NOTE Used during undo/redo
+            wParam = 0;
+        else if (wParam)
+            CaptureUndo(hWnd, eexd, lstrlen((LPCTSTR) lParam));
+        else
+        {
+            _ASSERT(FALSE);
+            eexd->undo.clear();
+            eexd->undoPos = 0;
+        }
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
         if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
         {
@@ -328,6 +393,8 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         if (Edit_GetExtendedStyle(hWnd) & ES_EX_VIEWWHITESPACE)
             EditExSetViewWhiteSpace(hWnd, true);
         EditExSetViewControlChars(hWnd, true);
+        eexd->undo.clear();
+        eexd->undoPos = 0;
         break;
     case WM_GETTEXT:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -335,9 +402,37 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             ModifyWhiteSpace(reinterpret_cast<LPTSTR>(lParam), wParam, false);
         ModifyControlChars(reinterpret_cast<LPTSTR>(lParam), wParam, false);
         break;
+    case EM_SETHANDLE:
+        // TODO Set EM_GETHANDLE/EM_SETHANDLE should ModifyWhiteSpace/ModifyControlChars
+        ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        eexd->undo.clear();
+        eexd->undoPos = 0;
+        break;
+
+    case EM_CANUNDO:
+        ret = eexd->undoPos > 0;
+        break;
+    case EM_CANREDO:
+        ret = eexd->undoPos < eexd->undo.size();
+        break;
+    case EM_UNDO:
+        if (ret = (eexd->undoPos > 0))
+        {
+            SwapUndo(hWnd, eexd->undo[--eexd->undoPos], true);
+            if (IsWindowVisible(hWnd))
+                NotifyParent(hWnd, EN_SEL_CHANGED);
+        }
+        break;
+    case EM_REDO:
+        if (ret = (eexd->undoPos < eexd->undo.size()))
+        {
+            SwapUndo(hWnd, eexd->undo[eexd->undoPos++], false);
+            if (IsWindowVisible(hWnd))
+                NotifyParent(hWnd, EN_SEL_CHANGED);
+        }
+        break;
 
     case EM_SETSEL:
-    case EM_UNDO:
     //case EM_REPLACESEL:
     //case WM_PASTE:
     //case WM_KEYDOWN:
@@ -348,7 +443,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
         break;
     case WM_MOUSEMOVE:
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
-        if (wParam & MK_LBUTTON && eexd->nPos != (DWORD) lParam && IsWindowVisible(hWnd))
+        if (wParam & MK_LBUTTON and eexd->nPos != (DWORD) lParam and IsWindowVisible(hWnd))
             NotifyParent(hWnd, EN_SEL_CHANGED);
         eexd->nPos = (DWORD) lParam;
         break;
@@ -357,7 +452,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
     {
         ret = DefSubclassProc(hWnd, uMsg, wParam, lParam);
 
-        if (eexd->nLineNumberWidth < 0 && eexd->nTrailingWhitespaceWidth < 0)
+        if (eexd->nLineNumberWidth < 0 and eexd->nTrailingWhitespaceWidth < 0)
             break;
 
         RECT rcClient = {};
@@ -431,7 +526,7 @@ LRESULT EditExProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR,
             {
                 const DWORD index = Edit_GetFileLineIndex(hWnd, line);
                 const int length = Edit_GetFileLineLength(hWnd, index);
-                if (length > 0 && lpText[index + length - 1] == TEXT(' ') || lpText[index + length - 1] == TEXT('\t'))
+                if (length > 0 and lpText[index + length - 1] == TEXT(' ') or lpText[index + length - 1] == TEXT('\t'))
                 {
                     const POINT ptPos = Edit_GetPosFromChar(hWnd, index);
                     const DWORD indexnext = Edit_GetFileLineIndex(hWnd, line + 1);
@@ -498,7 +593,7 @@ void Edit_ReplaceLineEndings(HWND hWnd)
         const DWORD nextindex = Edit_GetFileLineIndex(hWnd, i + 1);
 
         const DWORD begin = index + length;
-        if ((nextindex - begin) != len || memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
+        if ((nextindex - begin) != len or memcmp(lpText + begin, sEol[eol], (nextindex - begin) * sizeof(TCHAR)) != 0)
         {
             LocalUnlock(hText);
 

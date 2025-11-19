@@ -28,15 +28,22 @@ inline HWND Edit_Create(HWND hParent, DWORD dwStyle, RECT rc, int id)
     return hWnd;
 }
 
+#define EM_CANREDO        0x00E0
+#define EM_REDO           0x00E1
+
 //#define Edit_GetSelEx(hwndCtl, ichStart, ichEnd)  ((void)SNDMSG((hwndCtl), EM_GETSEL, (WPARAM)(ichStart), (LPARAM)(ichEnd)))
 //#define Edit_ReplaceSelEx(hwndCtl, lpszReplace, allowundo)   ((void)SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM)(LPCTSTR)(lpszReplace)))
 //#define Edit_Scroll(hwndCtl, dv, dh)            ((DWORD)SNDMSG((hwndCtl), EM_LINESCROLL, (WPARAM)(dh), (LPARAM)(dv)))
+//#define Edit_CanRedo(hwndCtl)                   ((BOOL)(DWORD)SNDMSG((hwndCtl), EM_CANREDO, 0L, 0L))
+//#define Edit_Redo(hwndCtl)                      ((BOOL)(DWORD)SNDMSG((hwndCtl), EM_REDO, 0L, 0L))
 
 inline void Edit_GetSelEx(HWND hwndCtl, DWORD* ichStart, DWORD* ichEnd) { ((void) SNDMSG((hwndCtl), EM_GETSEL, (WPARAM) (ichStart), (LPARAM) (ichEnd))); }
 inline void Edit_ReplaceSelEx(HWND hwndCtl, LPCTSTR lpszReplace, BOOL allowundo) { ((void) SNDMSG((hwndCtl), EM_REPLACESEL, allowundo, (LPARAM) (LPCTSTR) (lpszReplace))); }
 inline DWORD Edit_ScrollEx(HWND hwndCtl, UINT action) { return ((DWORD) SNDMSG((hwndCtl), EM_SCROLL, (WPARAM) (action), 0)); }
 inline POINT Edit_GetPosFromChar(HWND hwndCtl, UINT nChar) { return MAKEPOINT((DWORD) SNDMSG((hwndCtl), EM_POSFROMCHAR, (WPARAM) (nChar), 0)); }
 inline int Edit_GetLimitText(HWND hwndCtl) { return ((int) SNDMSG((hwndCtl), EM_GETLIMITTEXT, 0, 0)); }
+inline bool Edit_CanRedo(HWND hwndCtl) { return ((BOOL) (DWORD) SNDMSG((hwndCtl), EM_CANREDO, 0L, 0L)); }
+inline bool Edit_Redo(HWND hwndCtl) { return ((BOOL) (DWORD) SNDMSG((hwndCtl), EM_REDO, 0L, 0L)); }
 
 void Edit_ReplaceLineEndings(HWND hWnd);
 

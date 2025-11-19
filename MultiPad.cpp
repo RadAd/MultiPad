@@ -469,10 +469,8 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             Edit_Undo(m_hWndChild);
         break;
     case ID_EDIT_REDO:
-#if 0   // TODO
         if (Edit_CanRedo(m_hWndChild))
             Edit_Redo(m_hWndChild);
-#endif
         break;
     case ID_EDIT_CUT:
         SendMessage(m_hWndChild, WM_CUT, 0, 0);
@@ -534,6 +532,7 @@ void TextDocWindow::OnCommand(int id, HWND hWndCtl, UINT codeNotify)
             Edit_SetText(hNewEdit, pText);
             delete[] pText;
 #endif
+            // TODO Copy undo stack
             Edit_SetModify(hNewEdit, Edit_GetModify(m_hWndChild));
             Edit_SetSel(hNewEdit, dwSelStart, dwSelEnd);
             Edit_ScrollCaret(hNewEdit); // TODO Remove when copy scroll pos
@@ -650,7 +649,7 @@ void TextDocWindow::GetState(UINT id, State& state) const
     case ID_LINEENDINGS_UNIX:       state.checked = Edit_GetEndOfLine(m_hWndChild) == EC_ENDOFLINE_CR; break;
     case ID_LINEENDINGS_MACINTOSH:  state.checked = Edit_GetEndOfLine(m_hWndChild) == EC_ENDOFLINE_LF; break;
     case ID_EDIT_UNDO:              state.enabled = Edit_CanUndo(m_hWndChild); break;
-    case ID_EDIT_REDO:              state.enabled = false; break; // TODO Edit_CanRedo(m_hWndChild); break;
+    case ID_EDIT_REDO:              state.enabled = Edit_CanRedo(m_hWndChild); break;
     case ID_EDIT_CUT:
     case ID_EDIT_COPY:
     {
